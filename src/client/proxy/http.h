@@ -191,48 +191,24 @@ class HTTPResponse{
 /// @brief defines protocol; and read from socket algorithm
 class HTTPMessage : public std::enable_shared_from_this<HTTPMessage>{
  public:
-  std::string m_RequestLine, m_HeaderLine, m_Request, m_Body,
-    m_URL, m_Method, m_Version,  m_Path;
-  std::vector<std::string> m_Headers;
-  std::string m_Host, m_UserAgent;
-  std::string m_Address, m_Base64Destination;
+  HTTPMessage() : m_Port(0), m_ErrorResponse(HTTPResponseCodes::status_t::ok) {}
 
-  boost::asio::streambuf m_Buffer;
-  boost::asio::streambuf m_BodyBuffer;
-  std::vector<std::pair<std::string, std::string>> m_HeaderMap;
-  /// @brief Data for incoming request
-  std::uint16_t m_Port;
-
-  /// @var m_JumpService
-  /// @brief Address helpers for base64 jump service
-  const std::array<std::string, 4> m_JumpService {
-  {
-    "?i2paddresshelper=",
-    "&i2paddresshelper=",
-    "?kovrijumpservice=",
-    "&kovrijumpservice=",
-  }
-  };
-  HTTPResponse m_ErrorResponse;
-  HTTPMessage():m_Port(0), m_ErrorResponse(HTTPResponseCodes::status_t::ok) {
-  }
-  enum msg_t {
-    response,
-    request
-  };
   /// @brief loads variables in class;
   /// @param buf
   /// @param len
   /// return bool
+  // TODO(oneiric): convert to void return, throw on error
   bool HandleData(const std::string  &buf);
 
   /// @brief Parses URI for base64 destination
   /// @return true on success
+  // TODO(oneiric): convert to void return, throw on error
   bool HandleJumpService();
 
   /// @brief Performs regex, sets address/port/path, validates version
   ///   on request sent from user
   /// @return true on success
+  // TODO(oneiric): convert to void return, throw on error
   bool ExtractIncomingRequest();
 
   /// @brief Processes original request: extracts, validates,
@@ -242,20 +218,65 @@ class HTTPMessage : public std::enable_shared_from_this<HTTPMessage>{
   // TODO(unassigned): save address param is a hack until storage is separated from message
   bool CreateHTTPRequest(const bool save_address = true);
 
+  enum msg_t {
+    response,
+    request
+  };
+  // TODO(oneiric): enumerate
   const unsigned int HEADERBODY_LEN = 2;
   const unsigned int REQUESTLINE_HEADERS_MIN = 1;
+  /// @var m_JumpService
+  /// @brief Address helpers for base64 jump service
+  // TODO(oneiric): remove special characters, only two helper strings, enumerate
+  const std::array<std::string, 4> m_JumpService {
+  {
+    "?i2paddresshelper=",
+    "&i2paddresshelper=",
+    "?kovrijumpservice=",
+    "&kovrijumpservice=",
+  }
+  };
+  // TODO(oneiric): create struct to hold HTTP parts
+  // TODO(oneiric): create struct to hold URI parts
+  // TODO(oneiric): make data members private,
+  //                  expose with member functions
+  std::string m_RequestLine,
+              m_HeaderLine,
+              m_Request,
+              m_Body,
+              m_Method,
+              m_Version,
+              m_UserAgent,
+              m_URL,
+              m_Host,
+              m_Path,
+              m_Query,
+              m_Fragment;
+  std::uint16_t m_Port;
+  HTTPResponse m_ErrorResponse;
+  std::vector<std::string> m_Headers;
+  boost::asio::streambuf m_Buffer;
+  boost::asio::streambuf m_BodyBuffer;
+  // TODO(oneiric): why isn't this a std::map?
+  std::vector<std::pair<std::string, std::string>> m_HeaderMap;
+  // TODO(oneiric): create struct in address book to represent an address book entry
+  std::string m_Address, m_Base64Destination;
+
  private:
   /// @brief Checks if request is a valid jump service request
   /// @return Index of jump service helper sub-string, 0 indicates failure
+  // TODO(oneiric): convert to void return, throw on error
   std::size_t IsJumpServiceRequest() const;
 
   /// @brief Extracts & url-decodes base64 destination from URL
   /// @param pos Index of jump service helper sub-string in URL
   /// @return True on success
+  // TODO(oneiric): convert to void return, throw on error
   bool ExtractBase64Destination(std::size_t const pos);
 
   /// @brief Saves found address in address book
   /// @return True on success
+  // TODO(oneiric): convert to async proxy handler
   bool SaveJumpServiceAddress();
 };
 /// @class HTTPProxyServer
