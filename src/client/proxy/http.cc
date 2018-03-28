@@ -316,39 +316,25 @@ bool HTTPMessage::CreateHTTPRequest(const bool save_address) {
   }
 
   // TODO(oneiric): convert jump service handling to try-catch block
-  if (!IsJumpServiceRequest())
-    {
-      // TODO(oneiric): remove unnecessary log message
-      LOG(debug) << "HTTPProxyHandler: not a jump service request";
-    }
-  else  // Handle the jump service request
+  if (IsJumpServiceRequest())
     {
       if (!HandleJumpService())
         {
-          // TODO(oneiric): remove unnecessary log message
-          LOG(error) << "HTTPMessage: invalid jump service request";
           m_ErrorResponse =
               HTTPResponse(HTTPResponseCodes::status_t::bad_request);
           return false;
         }
-      // TODO(oneiric): remove this unnecessary else block
-      else  // Requested address found, save to address book
+      // TODO(oneiric): this is very dangerous and broken
+      // When converting to a proxy handler, we should prompt the user with an
+      // HTTP redirect to a save form that should contain:
+      // - host info: short address, base32 address, base64 destination
+      // - save location options
+      // - continue without saving option
+      if (!SaveJumpServiceAddress() && save_address)
         {
-          // TODO(oneiric): this is very dangerous and broken
-          // When converting to a proxy handler, we should prompt the user with an
-          // HTTP redirect to a save form that should contain:
-          // - host info: short address, base32 address, base64 destination
-          // - save location options
-          // - continue without saving option
-          if (!SaveJumpServiceAddress() && save_address)
-            {
-              // TODO(oneiric): remove unnecessary log message
-              LOG(error)
-                  << "HTTPProxyHandler: failed to save address to address book";
-              m_ErrorResponse = HTTPResponse(
-                  HTTPResponseCodes::status_t::internal_server_error);
-              return false;
-            }
+          m_ErrorResponse =
+              HTTPResponse(HTTPResponseCodes::status_t::internal_server_error);
+          return false;
         }
     }
 
