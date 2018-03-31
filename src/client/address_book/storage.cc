@@ -139,5 +139,44 @@ std::size_t AddressBookStorage::Save(
   return num;
 }
 
+std::string AddressBookDefaults::GetSubscriptionFilename(
+    AddressBookDefaults::Subscription source)
+{
+  std::string filename("hosts.txt");
+  switch (source)
+    {
+      case Subscription::Default:
+        break;
+      case Subscription::User:
+        filename.insert(0, "user_");
+        break;
+      case Subscription::Private:
+        filename.insert(0, "private_");
+        break;
+      default:
+        throw std::invalid_argument("AddressBookStorage: unknown subscription source");
+    };
+  return filename;
+}
+
+std::string AddressBookDefaults::GetAddressesFilename(
+    AddressBookDefaults::Subscription source)
+{
+  std::string filename("addresses.csv");
+  switch (source)
+    {
+      case Subscription::Default:
+        break;
+      case Subscription::User:
+        filename.insert(0, "user_");
+        break;
+      case Subscription::Private:
+        filename.insert(0, "private_");
+        break;
+      default:
+        throw std::invalid_argument("AddressBookStorage: unknown subscription source");
+    };
+  return filename;
+}
 }  // namespace client
 }  // namespace kovri

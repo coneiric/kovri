@@ -104,6 +104,27 @@ struct AddressBookDefaults {
   std::string GetDefaultAddressesFilename() const {
     return "addresses.csv";
   }
+
+  /// @brief Subscription sources for loading/storing addresses
+  enum struct Subscription {
+    Default,
+    User,
+    Private,
+  };
+
+  /// @brief Gets subscription filename
+  /// @param source Subscription type (i.e. default, user, private)
+  /// @return Subscription filename, or empty string for unknown source
+  /// @throw std::invalid_argument on unknown subscription source
+  /// @notes Storage for "hostname=b64-identity"
+  std::string GetSubscriptionFilename(Subscription source);
+
+  /// @brief Gets addresses filename
+  /// @param source Subscription type (i.e. default, user, private)
+  /// @return Address catalog filename, or empty string for unknown source
+  /// @throw std::invalid_argument on unknown subscription source
+  /// @notes Storage for "hostname,b32-address"
+  std::string GetAddressesFilename(Subscription source);
 };
 
 /// @class AddressBookStorage
