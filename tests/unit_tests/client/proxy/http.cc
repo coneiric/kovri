@@ -219,3 +219,30 @@ BOOST_AUTO_TEST_CASE(NoDest)
 }
 
 BOOST_AUTO_TEST_SUITE_END()
+
+/**
+ *
+ * Miscellaneous HTTP Tests
+ *
+ */
+
+BOOST_FIXTURE_TEST_SUITE(HTTPMisc, HTTPProxyRequestFixture)
+
+BOOST_AUTO_TEST_CASE(ParseURI)
+{
+  namespace client = kovri::client;
+  std::string const request("stats.i2p?i2paddresshelper=" + valid_dest);
+  BOOST_CHECK_NO_THROW(HTTPMessage message(request));
+
+  boost::network::uri::uri uri(request);
+  client::URI client_uri(
+      uri.host(), uri.port(), uri.path(), uri.query(), uri.fragment());
+  BOOST_CHECK_EQUAL(client_uri.get(client::URI_t::Host), uri.host());
+  BOOST_CHECK_EQUAL(client_uri.get(client::URI_t::Port), "80");
+  BOOST_CHECK_EQUAL(client_uri.get(client::URI_t::Path), "");
+  BOOST_CHECK_EQUAL(client_uri.get(client::URI_t::Query), uri.query());
+  BOOST_CHECK_EQUAL(client_uri.get(client::URI_t::Fragment), "");
+  BOOST_CHECK_EQUAL(client_uri.get(client::URI_t::URL), request);
+}
+
+BOOST_AUTO_TEST_SUITE_END()
