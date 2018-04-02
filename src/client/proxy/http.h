@@ -281,16 +281,11 @@ class HTTPMessage : public std::enable_shared_from_this<HTTPMessage>{
   // TODO(oneiric): enumerate
   const unsigned int HEADERBODY_LEN = 2;
   const unsigned int REQUESTLINE_HEADERS_MIN = 1;
-  /// @var m_JumpService
-  /// @brief Address helpers for base64 jump service
-  // TODO(oneiric): remove special characters, only two helper strings, enumerate
-  const std::array<std::string, 4> m_JumpService {
+  /// @brief Jump service query string container
+  struct JumpService
   {
-    "?i2paddresshelper=",
-    "&i2paddresshelper=",
-    "?kovrijumpservice=",
-    "&kovrijumpservice=",
-  }
+    JumpService() : Kovri("kovrijumpservice"), I2P("i2paddresshelper") {}
+    const std::string Kovri, I2P;
   };
   // TODO(oneiric): create struct to hold HTTP parts
   // TODO(oneiric): make data members private,
@@ -311,6 +306,7 @@ class HTTPMessage : public std::enable_shared_from_this<HTTPMessage>{
   // TODO(oneiric): create struct in address book to represent an address book entry
   std::string m_Address, m_Base64Destination;
   URI m_URI;
+  JumpService m_JumpService;
 
  private:
   /// @brief Checks if request is a valid jump service request
