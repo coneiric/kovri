@@ -470,47 +470,6 @@ void HTTPMessage::HandleJumpQuery()
   }
   throw std::runtime_error("HTTPProxy: invalid jump service request");
 }
-std::size_t HTTPMessage::IsJumpServiceRequest() const
-{
-  std::size_t pos = 0;
-  std::size_t const pos1 = m_URI.get(URI_t::URL).rfind(m_JumpService.at(0));
-  std::size_t const pos2 = m_URI.get(URI_t::URL).rfind(m_JumpService.at(1));
-  if (pos1 == std::string::npos)
-    {
-      if (pos2 == std::string::npos)
-        return 0;  // Not a jump service
-      else
-        pos = pos2;
-    }
-  else
-    {
-      if (pos2 == std::string::npos)
-        pos = pos1;
-      else if (pos1 > pos2)
-        pos = pos1;
-      else
-        pos = pos2;
-    }
-
-  // final sanity check
-  if (pos && pos != std::string::npos)
-    return pos;
-
-  return 0;
-}
-
-bool HTTPMessage::ExtractBase64Destination(std::size_t const pos)
-{
-  std::size_t const base64_size = pos + m_JumpService.at(0).size();
-  if (pos && base64_size < m_URI.get(URI_t::URL).size())
-    {
-      std::string const base64 = m_URI.get(URI_t::URL).substr(base64_size);
-      m_Base64Destination = boost::network::uri::decoded(base64);
-      return true;
-    }
-
-  return false;
-}
 
 bool HTTPMessage::SaveJumpServiceAddress()
 {

@@ -312,16 +312,6 @@ class HTTPMessage : public std::enable_shared_from_this<HTTPMessage>{
   /// @brief Checks request for valid jump service query & extracts Base64 address
   /// @notes Throws if request does not have a valid jump service query
   void HandleJumpQuery();
-  /// @brief Checks if request is a valid jump service request
-  /// @return Index of jump service helper sub-string, 0 indicates failure
-  // TODO(oneiric): convert to void return, throw on error
-  std::size_t IsJumpServiceRequest() const;
-
-  /// @brief Extracts & url-decodes base64 destination from URL
-  /// @param pos Index of jump service helper sub-string in URL
-  /// @return True on success
-  // TODO(oneiric): convert to void return, throw on error
-  bool ExtractBase64Destination(std::size_t const pos);
 
   /// @brief Saves found address in address book
   /// @return True on success
