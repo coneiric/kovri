@@ -430,27 +430,23 @@ bool HTTPMessage::HandleJumpService()
   // TODO(anonimal): add support for remaining services /
   // rewrite this function
 
-  // Perform sanity check again to:
-  // - ensure valid jump service request
-  // TODO(oneiric): convert to try-catch block
-  std::size_t const pos = IsJumpServiceRequest();
-  if (!pos)
-    {
-      LOG(error) << "HTTPProxyHandler: not a valid jump service request";
-      // Jump service parameter not found in URL, so just return
-      return false;
-    }
-
-  // TODO(oneiric): convert to try-catch block
-  if (!ExtractBase64Destination(pos))
-    {
-      LOG(error) << "HTTPProxyHandler: unable to process base64 destination for "
-                 << m_Address;
-      return false;
-    }
-
-  LOG(debug) << "HTTPProxyHandler: jump service for " << m_Address
-             << " found at " << m_Base64Destination;
+  try
+  {
+    HandleJumpQuery();
+    LOG(debug) << "HTTPProxyHandler: jump service for " << m_URI.get(URI_t::Host) 
+               << " found at " << m_Base64Destination;
+    // Remove jump service query from request URL
+    m_URI.set(
+        URI_t::URL,
+        m_URI.get(URI_t::Host) + ":" + m_URI.get(URI_t::Port) + "/"
+            + m_URI.get(URI_t::Path));
+  }
+  catch (...)
+  {
+    kovri::core::Exception ex;
+    ex.Dispatch(__func__);
+    return false;
+  }
   return true;
 }
 
