@@ -454,6 +454,26 @@ bool HTTPMessage::HandleJumpService()
   return true;
 }
 
+void HTTPMessage::HandleJumpQuery()
+{
+  std::size_t pos = m_URI.get(URI_t::Query).find('=');
+  if (pos != std::string::npos)
+  {
+    std::string const t_query = m_URI.get(URI_t::Query).substr(0, pos++);
+    if (t_query == m_JumpService.Kovri || t_query == m_JumpService.I2P)
+    {
+      m_Base64Destination =
+          boost::network::uri::decoded(m_URI.get(URI_t::Query).substr(pos));
+      if (!m_Base64Destination.empty())
+        return; // valid jump service query found
+
+      // If we are this far, we have a bad jump service request.
+      // Otherwise, we could still have a valid HTTP proxy request.
+      m_ErrorResponse = HTTPResponse(HTTPResponseCodes::bad_request);
+    }
+  }
+  throw std::runtime_error("HTTPProxy: invalid jump service request");
+}
 std::size_t HTTPMessage::IsJumpServiceRequest() const
 {
   std::size_t pos = 0;
