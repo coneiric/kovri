@@ -328,15 +328,8 @@ bool HTTPMessage::CreateHTTPRequest(const bool save_address) {
     return false;
   }
 
-  // TODO(oneiric): convert jump service handling to try-catch block
-  if (IsJumpServiceRequest())
+  if (HandleJumpService())
     {
-      if (!HandleJumpService())
-        {
-          m_ErrorResponse =
-              HTTPResponse(HTTPResponseCodes::status_t::bad_request);
-          return false;
-        }
       // TODO(oneiric): this is very dangerous and broken
       // When converting to a proxy handler, we should prompt the user with an
       // HTTP redirect to a save form that should contain:

@@ -110,14 +110,14 @@ BOOST_AUTO_TEST_CASE(Valid)
   BOOST_CHECK(message.get().HandleJumpService());
 }
 
-BOOST_AUTO_TEST_CASE(WithURIQuery)
+BOOST_AUTO_TEST_CASE(WithInvalidURIQuery)
 {
   std::string const request(
       "stats.i2p?some=key&i2paddresshelper=" + valid_dest);
   BOOST_CHECK_NO_THROW(HTTPMessage message(request));
 
   HTTPMessage message(request);
-  BOOST_CHECK(message.get().HandleJumpService());
+  BOOST_CHECK(!message.get().HandleJumpService());
 }
 
 BOOST_AUTO_TEST_CASE(InvalidDest)
@@ -128,8 +128,7 @@ BOOST_AUTO_TEST_CASE(InvalidDest)
   BOOST_CHECK_NO_THROW(HTTPMessage message(request));
 
   HTTPMessage message(request);
-  // TODO(unassigned): if this is an invalid test-case, then check false
-  BOOST_CHECK(message.get().HandleJumpService());
+  BOOST_CHECK(!message.get().HandleJumpService());
 }
 
 BOOST_AUTO_TEST_CASE(InvalidDestWithURIQuery)
@@ -140,8 +139,7 @@ BOOST_AUTO_TEST_CASE(InvalidDestWithURIQuery)
   BOOST_CHECK_NO_THROW(HTTPMessage message(request));
 
   HTTPMessage message(request);
-  // TODO(unassigned): if this is an invalid test-case, then check false
-  BOOST_CHECK(message.get().HandleJumpService());
+  BOOST_CHECK(!message.get().HandleJumpService());
 }
 
 BOOST_AUTO_TEST_CASE(InvalidHelper)
@@ -205,8 +203,7 @@ BOOST_AUTO_TEST_CASE(InvalidHelper)
   BOOST_CHECK_NO_THROW(HTTPMessage message(request));
 
   HTTPMessage message(request);
-  // TODO(unassigned): if this is an invalid test-case, then check false
-  BOOST_CHECK(message.get().CreateHTTPRequest(false));
+  BOOST_CHECK(!message.get().CreateHTTPRequest(false));
 }
 
 BOOST_AUTO_TEST_CASE(NoDest)
