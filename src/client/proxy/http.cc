@@ -542,5 +542,55 @@ void HTTPProxyHandler::Terminate() {
   Done(shared_from_this());
 }
 
+const std::string& URI::get(const URI_t& part) const noexcept
+{
+  switch (part)
+  {
+    case URI_t::Host:
+      return m_Host;
+    case URI_t::Port:
+      return m_Port;
+    case URI_t::Path:
+      return m_Path;
+    case URI_t::Query:
+      return m_Query;
+    case URI_t::Fragment:
+      return m_Fragment;
+    case URI_t::URL:
+      return m_URL;
+    default:
+      LOG(error) << "HTTPProxy: unknown URI part";
+      return m_Unknown;
+  }
+}
+
+URI& URI::set(const URI_t& part, const std::string& value)
+{
+  switch (part)
+  {
+    case URI_t::Host:
+      m_Host = value;
+      break;
+    case URI_t::Port:
+      m_Port = value;
+      break;
+    case URI_t::Path:
+      m_Path = value;
+      break;
+    case URI_t::Query:
+      m_Query = value;
+      break;
+    case URI_t::Fragment:
+      m_Fragment = value;
+      break;
+    case URI_t::URL:
+      m_URL = value;
+      break;
+    default:
+      LOG(error) << "HTTPProxy: unknown URI part";
+      break;
+  }
+  return *this;
+}
 }  // namespace client
 }  // namespace kovri

@@ -159,6 +159,62 @@ struct HTTPResponseCodes{
     }
   }
 };
+
+/// @brief URI component parts
+enum struct URI_t
+{
+  Host,
+  Port,
+  Path,
+  Query,
+  Fragment,
+  URL,
+};
+/// @class URI
+/// @brief Container for HTTP URI components
+class URI
+{
+ public:
+  URI() : m_Unknown("Unknown URI part") {}
+
+  /// @brief Create URI from components
+  URI(const std::string& host,
+      const std::string& port,
+      const std::string& path,
+      const std::string& query,
+      const std::string& fragment)
+      : m_Host(host),
+        m_Port(port),
+        m_Path(path),
+        m_Query(query),
+        m_Fragment(fragment),
+        m_URL(host),
+        m_Unknown("Unknown URI part")
+  {
+    if (m_Port.empty())
+      m_Port = "80";
+
+    m_URL.append(":" + port);
+    if (!m_Path.empty())
+      m_URL.append("/" + m_Path);
+    if (!m_Query.empty())
+      m_URL.append("?" + m_Query);
+    if (!m_Fragment.empty())
+      m_URL.append("#" + m_Fragment);
+  }
+
+  /// @brief Access URI component parts
+  /// @return The URI component part
+  const std::string& get(const URI_t& part) const noexcept;
+
+  /// @brief Set URI component parts
+  /// @return A mutable reference to this URI instance
+  URI& set(const URI_t& part, const std::string& value);
+
+ private:
+  std::string m_Host, m_Port, m_Path, m_Query, m_Fragment, m_URL, m_Unknown;
+};
+
 /// @class HTTPResponse
 /// @brief response for http error messages
 class HTTPResponse{
@@ -191,7 +247,7 @@ class HTTPResponse{
 /// @brief defines protocol; and read from socket algorithm
 class HTTPMessage : public std::enable_shared_from_this<HTTPMessage>{
  public:
-  HTTPMessage() : m_Port(0), m_ErrorResponse(HTTPResponseCodes::status_t::ok) {}
+  HTTPMessage() : m_ErrorResponse(HTTPResponseCodes::status_t::ok) {}
 
   /// @brief loads variables in class;
   /// @param buf
@@ -237,7 +293,6 @@ class HTTPMessage : public std::enable_shared_from_this<HTTPMessage>{
   }
   };
   // TODO(oneiric): create struct to hold HTTP parts
-  // TODO(oneiric): create struct to hold URI parts
   // TODO(oneiric): make data members private,
   //                  expose with member functions
   std::string m_RequestLine,
@@ -246,13 +301,7 @@ class HTTPMessage : public std::enable_shared_from_this<HTTPMessage>{
               m_Body,
               m_Method,
               m_Version,
-              m_UserAgent,
-              m_URL,
-              m_Host,
-              m_Path,
-              m_Query,
-              m_Fragment;
-  std::uint16_t m_Port;
+              m_UserAgent;
   HTTPResponse m_ErrorResponse;
   std::vector<std::string> m_Headers;
   boost::asio::streambuf m_Buffer;
@@ -261,6 +310,7 @@ class HTTPMessage : public std::enable_shared_from_this<HTTPMessage>{
   std::vector<std::pair<std::string, std::string>> m_HeaderMap;
   // TODO(oneiric): create struct in address book to represent an address book entry
   std::string m_Address, m_Base64Destination;
+  URI m_URI;
 
  private:
   /// @brief Checks if request is a valid jump service request
