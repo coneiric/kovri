@@ -202,16 +202,29 @@ void HTTPProxyHandler::AsyncHandleReadHeaders(
   }
 }
 void HTTPProxyHandler::CreateStream() {
-  LOG(debug) <<  "HTTPProxyHandler: sock recv: " << m_Protocol.m_Buffer.size();
-  if (m_Protocol.CreateHTTPRequest()) {
-    LOG(info)<< "HTTPProxyHandler: proxy requested: "<< m_Protocol.m_URL;
-    GetOwner()->CreateStream(
-        std::bind(
-            &HTTPProxyHandler::HandleStreamRequestComplete,
-            shared_from_this(),
-            std::placeholders::_1),
-        m_Protocol.m_Address,
-        m_Protocol.m_Port);
+  try
+    {
+      LOG(debug) << "HTTPProxyHandler: sock recv: "
+                 << m_Protocol.m_Buffer.size();
+      if (m_Protocol.CreateHTTPRequest())
+        {
+          LOG(info) << "HTTPProxyHandler: proxy requested: "
+                    << m_Protocol.m_URI.get(URI_t::URL);
+          GetOwner()->CreateStream(
+              std::bind(
+                  &HTTPProxyHandler::HandleStreamRequestComplete,
+                  shared_from_this(),
+                  std::placeholders::_1),
+              m_Protocol.m_URI.get(URI_t::Host),
+              boost::lexical_cast<std::uint16_t>(
+                  m_Protocol.m_URI.get(URI_t::Port)));
+        }
+    }
+  catch (...)
+  {  // Handle bad lexical cast
+    kovri::core::Exception ex(__func__);
+    ex.Dispatch();
+    throw;
   }
 }
 void HTTPProxyHandler::HandleSockRecv(
@@ -257,8 +270,8 @@ bool HTTPMessage::HandleData(const std::string& protocol_string) {
   boost::split(tokens_request, m_RequestLine, boost::is_any_of(" \t"));
   if (tokens_request.size() == 3) {
     m_Method = tokens_request[0];
-    m_URL = tokens_request[1];
     m_Version = tokens_request[2];
+    m_URI.set(URI_t::URL, tokens_request[1]);
   } else {
     return false;
   }
@@ -341,7 +354,7 @@ bool HTTPMessage::CreateHTTPRequest(const bool save_address) {
   // Set method, path, and version
   m_Request = m_Method;
   m_Request.push_back(' ');
-  m_Request += m_Path;
+  m_Request += m_URI.get(URI_t::URL);
   m_Request.push_back(' ');
   m_Request += m_Version + "\r\n";
 
@@ -382,28 +395,25 @@ bool HTTPMessage::ExtractIncomingRequest() {
   m_ErrorResponse = HTTPResponse(HTTPResponseCodes::status_t::bad_request);
   LOG(debug)
     << "HTTPProxyHandler: method is: " << m_Method
-    << " request is: " << m_URL;
-  //  Set defaults and regexp
-  std::string server = "", port = "80";
-  // TODO(oneiric): extract URI components with cpp-netlib::uri
-  boost::regex regex("http://(.*?)(:(\\d+))?(/.*)");
-  boost::smatch smatch;
-  std::string path;
-  // Ensure path is legitimate
-  if (boost::regex_search(m_URL, smatch, regex, boost::match_extra)) {
-    server = smatch[1].str();
-    if (smatch[2].str() != "")
-      port = smatch[3].str();
-    path = smatch[4].str();
-  }
-  LOG(debug)
-    << "HTTPProxyHandler: server is: " << server
-    << ", port is: " << port
-    << ", path is: " << path;
-  // Set member data
-  m_Address = server;
-  m_Port = boost::lexical_cast<std::uint16_t>(port);
-  m_Path = path;
+    << " request is: " << m_URI.get(URI_t::URL);
+  // Ugly hack to work around cppnetlib-uri failing to parse
+  //     remaining URI components if no scheme is present
+  // TODO(oneiric): patch cppnetlib-uri to parse with no scheme
+  if (m_URI.get(URI_t::URL).find("http:") == std::string::npos
+      && m_URI.get(URI_t::URL).find("https:") == std::string::npos)
+    m_URI.set(URI_t::URL, "http:" + m_URI.get(URI_t::URL));
+  boost::network::uri::uri uri(m_URI.get(URI_t::URL));
+  m_URI.set(URI_t::Host, uri.host())
+      .set(URI_t::Port, uri.port())
+      .set(URI_t::Path, uri.path())
+      .set(URI_t::Query, uri.query())
+      .set(URI_t::Fragment, uri.fragment());
+  LOG(debug) << "HTTPProxyHandler:"
+             << " server is: " << m_URI.get(URI_t::Host)
+             << ", port is: " << m_URI.get(URI_t::Port)
+             << ", path is: " << m_URI.get(URI_t::Path)
+             << ", query is: " << m_URI.get(URI_t::Query)
+             << ", fragment is: " << m_URI.get(URI_t::Fragment);
   // Check for HTTP version
   if (m_Version != "HTTP/1.0" && m_Version != "HTTP/1.1") {
     LOG(error) << "HTTPProxyHandler: unsupported version: " << m_Version;
@@ -436,21 +446,19 @@ bool HTTPMessage::HandleJumpService()
     {
       LOG(error) << "HTTPProxyHandler: unable to process base64 destination for "
                  << m_Address;
-      m_URL.erase(pos);
       return false;
     }
 
   LOG(debug) << "HTTPProxyHandler: jump service for " << m_Address
              << " found at " << m_Base64Destination;
-  m_URL.erase(pos);
   return true;
 }
 
 std::size_t HTTPMessage::IsJumpServiceRequest() const
 {
   std::size_t pos = 0;
-  std::size_t const pos1 = m_URL.rfind(m_JumpService.at(0));
-  std::size_t const pos2 = m_URL.rfind(m_JumpService.at(1));
+  std::size_t const pos1 = m_URI.get(URI_t::URL).rfind(m_JumpService.at(0));
+  std::size_t const pos2 = m_URI.get(URI_t::URL).rfind(m_JumpService.at(1));
   if (pos1 == std::string::npos)
     {
       if (pos2 == std::string::npos)
@@ -478,9 +486,9 @@ std::size_t HTTPMessage::IsJumpServiceRequest() const
 bool HTTPMessage::ExtractBase64Destination(std::size_t const pos)
 {
   std::size_t const base64_size = pos + m_JumpService.at(0).size();
-  if (pos && base64_size < m_URL.size())
+  if (pos && base64_size < m_URI.get(URI_t::URL).size())
     {
-      std::string const base64 = m_URL.substr(base64_size);
+      std::string const base64 = m_URI.get(URI_t::URL).substr(base64_size);
       m_Base64Destination = boost::network::uri::decoded(base64);
       return true;
     }
