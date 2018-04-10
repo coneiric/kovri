@@ -46,6 +46,9 @@ struct HTTPProxyRequestFixture
       // TODO(unassigned): message class should have private handlers. This would be useful within its ctor.
       if (!m_Message.HandleData(m_Request))
         throw std::runtime_error("HTTPMessage: invalid request");
+      // TODO(unassigned): message class should have private handlers. This would be useful within its ctor.
+      if (!m_Message.ExtractIncomingRequest())
+        throw std::runtime_error("HTTPMessage: invalid request");
     }
 
     // TODO(unassigned): message API needs a proper interface
