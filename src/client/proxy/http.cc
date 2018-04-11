@@ -386,9 +386,6 @@ bool HTTPMessage::CreateHTTPRequest(const bool save_address) {
 
 bool HTTPMessage::ExtractIncomingRequest() {
   m_ErrorResponse = HTTPResponse(HTTPResponseCodes::status_t::bad_request);
-  LOG(debug)
-    << "HTTPProxyHandler: method is: " << m_Method
-    << " request is: " << m_URI.get(URI_t::URL);
   // Ugly hack to work around cppnetlib-uri failing to parse
   //     remaining URI components if no scheme is present
   // TODO(oneiric): patch cppnetlib-uri to parse with no scheme
