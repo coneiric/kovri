@@ -42,7 +42,7 @@ ifeq ($(KOVRI_DATA_PATH),)
   ifeq ($(system), DragonFly)
     data-path = $(HOME)/.kovri
   endif
-  ifneq (, $(findstring MINGW, $(system)))
+  ifneq (, $(findstring MINGW, $(subst MSYS, MINGW, $(system)))) # Support MSYS shell
     data-path = "$(APPDATA)"\\Kovri
     cmake-gen = -G 'MSYS Makefiles'
   endif
