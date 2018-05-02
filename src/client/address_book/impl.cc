@@ -197,7 +197,7 @@ void AddressBook::LoadSubscriptionFromPublisher() {
   // If so, see if we have addresses from subscription already saved
   // TODO(anonimal): in order to load new fresh subscriptions,
   // we need to remove and/or work around this block and m_SubscriptionIsLoaded
-  if (m_Storage->Load(m_Addresses)) {
+  if (m_Storage->Load(m_DefaultAddresses)) {
     // If so, we don't need to download from a publisher
     LOG(debug) << "AddressBook: subscription is already loaded";
     m_SubscriptionIsLoaded = true;
@@ -328,7 +328,7 @@ bool AddressBook::SaveSubscription(
       // Flush subscription file
       file << std::flush;
       // Save a *list* of hosts within subscription to a catalog (CSV) file
-      m_Storage->Save(m_Addresses);
+      m_Storage->Save(m_UserAddresses);
       m_SubscriptionIsLoaded = true;
     }
   } catch (...) {
@@ -444,8 +444,8 @@ std::unique_ptr<const kovri::core::IdentHash> AddressBook::GetLoadedAddressIdent
   if (!m_SubscriptionIsLoaded)
     LoadSubscriptionFromPublisher();
   if (m_SubscriptionIsLoaded) {
-    auto it = m_Addresses.find(address);
-    if (it != m_Addresses.end()) {
+    auto it = m_DefaultAddresses.find(address);
+    if (it != m_DefaultAddresses.end()) {
       return std::make_unique<const kovri::core::IdentHash>(it->second);
     }
   }
@@ -459,13 +459,13 @@ void AddressBook::InsertAddress(
   try
   {
     // Ensure address book only inserts unique entries
-    if (!m_Addresses.empty())
+    if (!m_DefaultAddresses.empty())
       {
-        for (const auto& entry : m_Addresses)
+        for (const auto& entry : m_DefaultAddresses)
           if (entry.second == address)
             throw std::runtime_error("AddressBook: address already loaded");
       }
-    m_Addresses[host] = address;
+    m_UserAddresses[host] = address;
   }
   catch (...)
   {
@@ -523,7 +523,7 @@ void AddressBook::Stop() {
   }
   // Save addresses to storage
   if (m_Storage) {
-    m_Storage->Save(m_Addresses);
+    m_Storage->Save(m_DefaultAddresses);
     m_Storage.reset(nullptr);
   }
   m_Subscribers.clear();

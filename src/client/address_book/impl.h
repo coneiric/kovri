@@ -258,9 +258,17 @@ class AddressBook : public AddressBookDefaults {
   /// @brief Mutex for address book implementation when loading hosts from file
   std::mutex m_AddressBookMutex;
 
-  /// @var m_Addresses
-  /// @brief Map of human readable addresses to identity hashes
-  std::map<std::string, kovri::core::IdentHash> m_Addresses;
+  /// @var m_DefaultAddresses
+  /// @brief Map of human readable addresses to identity hashes from default subscription
+  std::map<std::string, kovri::core::IdentHash> m_DefaultAddresses;
+
+  /// @var m_UserAddresses
+  /// @brief Map of human readable addresses to identity hashes from user subscriptions
+  std::map<std::string, kovri::core::IdentHash> m_UserAddresses;
+
+  /// @var m_PrivateAddresses
+  /// @brief Map of human readable addresses to identity hashes from private subscriptions
+  std::map<std::string, kovri::core::IdentHash> m_PrivateAddresses;
 
   /// @var m_Storage
   /// @brief Unique pointer to address book storage implementation
