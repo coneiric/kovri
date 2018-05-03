@@ -166,7 +166,8 @@ class AddressBookStorage : public AddressBookDefaults {
   /// @return Number of addresses saved
   /// @param addresses Const reference to map of human-readable address to b32 hashes of address
   std::size_t Save(
-      const std::map<std::string, kovri::core::IdentHash>& addresses);
+      const std::map<std::string, kovri::core::IdentHash>& addresses,
+      Subscription source);
 
  private:
   /// @return Address book path with appended addresses location

@@ -123,19 +123,34 @@ std::size_t AddressBookStorage::Load(
 }
 
 std::size_t AddressBookStorage::Save(
-    const std::map<std::string, kovri::core::IdentHash>& addresses) {
+    const std::map<std::string, kovri::core::IdentHash>& addresses,
+    Subscription source)
+{
   std::size_t num = 0;
-  auto filename = core::GetPath(core::Path::AddressBook)/ GetDefaultAddressesFilename();
-  std::ofstream file(filename.string(), std::ofstream::out);
-  if (!file) {
-    LOG(error) << "AddressBookStorage: can't open file " << filename;
-  } else {
-    for (auto const& it : addresses) {
-      file << it.first << "," << it.second.ToBase32() << std::endl;
-      num++;
+  try
+    {
+      auto filename =
+          core::GetPath(core::Path::AddressBook) / GetAddressesFilename(source);
+      // Open file for overwriting, append after each write
+      kovri::core::OutputFileStream file(
+          filename.string(), std::ios::out | std::ios::trunc);
+      if (!file.Good())
+        throw std::runtime_error(
+            "AddressBookStorage: can't open addresses file "
+            + filename.string());
+      for (auto const& it : addresses)
+        {
+          std::string const line(it.first + "," + it.second.ToBase32() + "\n");
+          file.Write(const_cast<char*>(line.c_str()), line.size());
+          ++num;
+        }
     }
-    LOG(info) << "AddressBookStorage: " << num << " addresses saved";
-  }
+  catch (...)
+    {
+      kovri::core::Exception ex(__func__);
+      ex.Dispatch();
+    }
+  LOG(info) << "AddressBookStorage: " << num << " addresses saved";
   return num;
 }
 
