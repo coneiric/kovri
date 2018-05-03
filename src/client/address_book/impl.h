@@ -146,10 +146,14 @@ class AddressBook : public AddressBookDefaults {
   /// @brief Insert address into in-memory storage
   /// @param host Human-readable hostname to insert
   /// @param address Hash of address to insert
-  /// @notes Throws if host or address are duplicates
+  /// @param source Subscription type for where to insert address
+  /// @throw std::runtime_error if an entry exists for host
+  /// @throw std::runtime_error if address is already loaded into memory
+  /// @throw std::invalid_argument on unknown subscription source
   void InsertAddress(
       const std::string& host,
-      const kovri::core::IdentHash& address);
+      const kovri::core::IdentHash& address,
+      Subscription source);
 
   /// @brief Inserts address into address book from HTTP Proxy jump service
   /// @param address Const reference to human-readable address

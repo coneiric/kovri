@@ -313,7 +313,7 @@ bool AddressBook::SaveSubscription(
         try
           {
             // Only stores subscription lines for addresses not already loaded
-            InsertAddress(host, ident.GetIdentHash());
+            InsertAddress(host, ident.GetIdentHash(), Subscription::Default);
             // Write/overwrite Hostname=Base64Address pairing to subscription file
             // TODO(anonimal): this is not optimal, especially for large subscriptions
             file << host << "=" << ident.ToBase64() << '\n';
@@ -454,24 +454,69 @@ std::unique_ptr<const kovri::core::IdentHash> AddressBook::GetLoadedAddressIdent
 
 void AddressBook::InsertAddress(
     const std::string& host,
-    const kovri::core::IdentHash& address)
+    const kovri::core::IdentHash& address,
+    Subscription source)
 {
-  try
-  {
-    // Ensure address book only inserts unique entries
-    if (!m_DefaultAddresses.empty())
-      {
-        for (const auto& entry : m_DefaultAddresses)
-          if (entry.second == address)
-            throw std::runtime_error("AddressBook: address already loaded");
-      }
-    m_UserAddresses[host] = address;
-  }
-  catch (...)
-  {
-    m_Exception.Dispatch(__func__);
-    throw;
-  }
+  // Check if a host is loaded into memory.
+  auto check_host_loaded =
+      [host](std::map<std::string, kovri::core::IdentHash>& addr_map) {
+        if (!addr_map[host].IsZero())
+          {
+            // Entry for hostname found. If caller wishes to update the found entry,
+            //   a separate "update entry" function should be called. This will help
+            //   prevent silently updating user address entries, which could be the
+            //   result of an attack from a malicious subscription.
+            throw std::runtime_error(
+                "AddressBook: host already loaded into memory");
+          }
+        else
+          {
+            addr_map.erase(host);  // Clean up default-constructed entry
+            return;  // No entry for host exists in this address map
+          }
+      };
+  // Check if an address is loaded into memory.
+  auto check_address_loaded =
+      [address](const std::map<std::string, kovri::core::IdentHash>& addr_map) {
+        for (const auto& entry : addr_map)
+          {
+            if (entry.second == address)
+              throw std::runtime_error(
+                  "AddressBook: address already loaded into memory");
+          }
+      };
+  // Ensure address book only inserts unique entries
+  if (!m_DefaultAddresses.empty())
+    {
+      check_host_loaded(m_DefaultAddresses);
+      check_address_loaded(m_DefaultAddresses);
+    }
+  if (!m_UserAddresses.empty())
+    {
+      check_host_loaded(m_UserAddresses);
+      check_address_loaded(m_UserAddresses);
+    }
+  if (!m_PrivateAddresses.empty())
+    {
+      check_host_loaded(m_PrivateAddresses);
+      // TODO(unassigned): Java I2P allows private address collisions, should Kovri?
+      check_address_loaded(m_PrivateAddresses);
+    }
+  // Can now be reasonably sure inserting an entry is safe
+  switch (source)
+    {
+      case Subscription::Default:
+        m_DefaultAddresses[host] = address;
+        break;
+      case Subscription::User:
+        m_UserAddresses[host] = address;
+        break;
+      case Subscription::Private:
+        m_PrivateAddresses[host] = address;
+        break;
+      default:
+        throw std::invalid_argument("AddressBook: unknown subscription source");
+    }
 }
 
 // Used only by HTTP Proxy
@@ -484,7 +529,7 @@ void AddressBook::InsertAddressIntoStorage(
       kovri::core::IdentityEx ident;
       ident.FromBase64(base64);
       const auto& ident_hash = ident.GetIdentHash();
-      InsertAddress(address, ident_hash);
+      InsertAddress(address, ident_hash, Subscription::User);
       if (!m_Storage)
         m_Storage = GetNewStorageInstance();
       m_Storage->AddAddress(ident);
