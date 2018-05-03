@@ -441,15 +441,26 @@ bool AddressBook::CheckAddressIdentHashFound(
 // For in-net download only
 std::unique_ptr<const kovri::core::IdentHash> AddressBook::GetLoadedAddressIdentHash(
     const std::string& address) {
+  auto found_addr = std::make_unique<const kovri::core::IdentHash>();
+  // Check if the target address is in the supplied address map.
+  auto find_address =
+      [&found_addr,
+       address](std::map<std::string, kovri::core::IdentHash> const& addr_map) {
+        auto it = addr_map.find(address);
+        if (it != addr_map.end())
+          found_addr = std::make_unique<const kovri::core::IdentHash>(it->second);
+        else
+          found_addr = nullptr;
+      };
   if (!m_SubscriptionIsLoaded)
     LoadSubscriptionFromPublisher();
-  if (m_SubscriptionIsLoaded) {
-    auto it = m_DefaultAddresses.find(address);
-    if (it != m_DefaultAddresses.end()) {
-      return std::make_unique<const kovri::core::IdentHash>(it->second);
-    }
-  }
-  return nullptr;
+  if (!m_DefaultAddresses.empty())
+    find_address(m_DefaultAddresses);
+  if (!found_addr && !m_UserAddresses.empty())
+    find_address(m_UserAddresses);
+  if (!found_addr && !m_PrivateAddresses.empty())
+    find_address(m_PrivateAddresses);
+  return found_addr;
 }
 
 void AddressBook::InsertAddress(
