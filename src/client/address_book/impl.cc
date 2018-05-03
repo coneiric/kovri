@@ -208,7 +208,7 @@ void AddressBook::LoadSubscriptionFromPublisher() {
   std::ifstream file((core::GetPath(core::Path::AddressBook) / filename).string());
   LOG(info) << "AddressBook: loading subscription " << filename;
   if (file) {  // Open subscription, validate, and save to storage
-    if (!SaveSubscription(file))
+    if (!SaveSubscription(file, Subscription::Default))
       LOG(warning) << "AddressBook: could not load subscription " << filename;
   } else {  // Use default publisher and download
     LOG(warning) << "AddressBook: " << filename << " not found";
@@ -259,7 +259,7 @@ void AddressBookSubscriber::DownloadSubscriptionImpl() {
   bool download_result = m_HTTP.Download();
   if (download_result) {
     std::stringstream stream(m_HTTP.GetDownloadedContents());
-    if (!m_Book.SaveSubscription(stream)) {
+    if (!m_Book.SaveSubscription(stream, Subscription::User)) {
       // Error during validation or storage, download again later
       download_result = false;
     }
@@ -285,27 +285,22 @@ void AddressBook::HostsDownloadComplete(
   }
 }
 
-// TODO(unassigned): extend this to append new hosts (when other subscriptions are used)
 bool AddressBook::SaveSubscription(
     std::istream& stream,
-    std::string file_name) {
+    Subscription source) {
   std::unique_lock<std::mutex> lock(m_AddressBookMutex);
+  // Ensure we have a storage instance ready
+  if (!m_Storage)
+    {
+      LOG(debug) << "AddressBook: creating new storage instance";
+      m_Storage = GetNewStorageInstance();
+    }
   m_SubscriptionIsLoaded = false;  // TODO(anonimal): see TODO for multiple subscriptions
   try {
     auto addresses = ValidateSubscription(stream);
     if (!addresses.empty()) {
       LOG(debug) << "AddressBook: processing " << addresses.size() << " addresses";
       // Stream may be a file or downloaded stream.
-      // Regardless, we want to write/overwrite the subscription file.
-      // TODO(oneiric): save unique entries to userhosts.txt
-      if (file_name.empty())  // Use default filename if none given.
-        file_name = (core::GetPath(core::Path::AddressBook) / GetDefaultSubscriptionFilename()).string();
-      LOG(debug) << "AddressBook: opening subscription file " << file_name;
-      // TODO(anonimal): move file saving to storage class?
-      std::ofstream file;
-      file.open(file_name);
-      if (!file)
-        throw std::runtime_error("AddressBook: could not open subscription " + file_name);
       // Save hosts and matching identities
       for (auto const& address : addresses) {
         const std::string& host = address.first;
@@ -313,10 +308,8 @@ bool AddressBook::SaveSubscription(
         try
           {
             // Only stores subscription lines for addresses not already loaded
-            InsertAddress(host, ident.GetIdentHash(), Subscription::Default);
-            // Write/overwrite Hostname=Base64Address pairing to subscription file
-            // TODO(anonimal): this is not optimal, especially for large subscriptions
-            file << host << "=" << ident.ToBase64() << '\n';
+            InsertAddress(host, ident.GetIdentHash(), source);
+            // Save entry to ident_hash.b32 file for simple identity lookup
             m_Storage->AddAddress(ident);
           }
         catch (...)
@@ -325,10 +318,21 @@ bool AddressBook::SaveSubscription(
             continue;
           }
       }
-      // Flush subscription file
-      file << std::flush;
       // Save a *list* of hosts within subscription to a catalog (CSV) file
-      m_Storage->Save(m_UserAddresses);
+      switch (source)
+      {
+        case Subscription::Default:
+          m_Storage->Save(m_DefaultAddresses, source);
+          break;
+        case Subscription::User:
+          m_Storage->Save(m_UserAddresses, source);
+          break;
+        case Subscription::Private:
+          m_Storage->Save(m_PrivateAddresses, source);
+          break;
+        default:
+          throw std::invalid_argument("AddressBook: unknown subscription source");
+      }
       m_SubscriptionIsLoaded = true;
     }
   } catch (...) {

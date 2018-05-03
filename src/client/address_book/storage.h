@@ -164,7 +164,8 @@ class AddressBookStorage : public AddressBookDefaults {
 
   /// @brief Saves subscriptions to file in CSV format to verify addresses loaded
   /// @return Number of addresses saved
-  /// @param addresses Const reference to map of human-readable address to b32 hashes of address
+  /// @param addresses Const reference to map of human-readable hostname to b32 address hash
+  /// @param source Subscription type for where to save addresses
   std::size_t Save(
       const std::map<std::string, kovri::core::IdentHash>& addresses,
       Subscription source);

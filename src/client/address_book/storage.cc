@@ -131,13 +131,16 @@ std::size_t AddressBookStorage::Save(
     {
       auto filename =
           core::GetPath(core::Path::AddressBook) / GetAddressesFilename(source);
-      // Open file for overwriting, append after each write
+      // Overwrite previous contents of the catalog file. Addresses should contain
+      //   the entire latest set of subscription addresses.
       kovri::core::OutputFileStream file(
           filename.string(), std::ios::out | std::ios::trunc);
       if (!file.Good())
-        throw std::runtime_error(
-            "AddressBookStorage: can't open addresses file "
-            + filename.string());
+        {
+          throw std::runtime_error(
+              "AddressBookStorage: can't open addresses file "
+              + GetAddressesFilename(source));
+        }
       for (auto const& it : addresses)
         {
           std::string const line(it.first + "," + it.second.ToBase32() + "\n");

@@ -175,12 +175,12 @@ class AddressBook : public AddressBookDefaults {
   /// @brief Saves subscription to address book
   /// @details Saves to subscription file if file does not exist or we have fresh download
   /// @param stream Reference to file stream of hosts (subscription)
-  /// @param file_name Optional filename to write to (used for multiple subscriptions)
+  /// @param source Subscription type for saving addresses (used for multiple subscriptions)
   /// @return True if subscription was successfully loaded
   /// @warning Must validate before saving
   bool SaveSubscription(
       std::istream& stream,
-      std::string file_name = "");
+      Subscription source);
 
   /// @brief Validates subscription, saves hosts to file
   /// @param stream Stream to process
@@ -302,7 +302,8 @@ class AddressBook : public AddressBookDefaults {
 
 /// @class AddressBookSubscriber
 /// @brief Handles fetching of hosts subscription from publisher
-class AddressBookSubscriber {
+class AddressBookSubscriber : public AddressBookDefaults
+{
  public:
   /// @brief Initializes defaults for address book subscription implementation
   AddressBookSubscriber(
