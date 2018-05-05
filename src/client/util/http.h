@@ -1,5 +1,5 @@
 /**                                                                                           //
- * Copyright (c) 2013-2017, The Kovri I2P Router Project                                      //
+ * Copyright (c) 2013-2018, The Kovri I2P Router Project                                      //
  *                                                                                            //
  * All rights reserved.                                                                       //
  *                                                                                            //
@@ -50,6 +50,16 @@
 
 namespace kovri {
 namespace client {
+namespace util {
+
+/// @brief Convert between HTTP date and ISO timestamp
+/// @param date Date string to convert from/to HTTP date format
+/// @param from_http Flag to determine converting from/to HTTP date format
+/// @return Converted date string on success, empty string on failure
+/// @notes Used primarily when reading/writing dates to storage
+std::string ConvertHTTPDate(std::string const& date, bool from_http);
+
+}  // namespace util
 
 /// @enum Timeout
 /// @brief Constants used for HTTP timeout lengths when downloading

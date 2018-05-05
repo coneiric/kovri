@@ -1,5 +1,5 @@
 /**                                                                                           //
- * Copyright (c) 2013-2017, The Kovri I2P Router Project                                      //
+ * Copyright (c) 2013-2018, The Kovri I2P Router Project                                      //
  *                                                                                            //
  * All rights reserved.                                                                       //
  *                                                                                            //
@@ -36,8 +36,11 @@
 #include <boost/network/message/wrappers/body.hpp>
 #include <boost/network/protocol/http/response.hpp>
 
+#include <chrono>
+#include <ctime>
 #include <exception>
 #include <functional>
+#include <locale>
 #include <memory>
 #include <vector>
 
@@ -51,6 +54,44 @@
 
 namespace kovri {
 namespace client {
+namespace util {
+
+std::string ConvertHTTPDate(std::string const& date, bool from_http)
+{
+  std::istringstream dsin(date);
+  std::ostringstream dsout{};
+  dsin.imbue(std::locale(std::locale::classic()));
+  dsout.imbue(std::locale(std::locale::classic()));
+  // Enable exceptions
+  dsin.exceptions(std::ios::failbit | std::ios::badbit);
+  dsout.exceptions(std::ios::failbit | std::ios::badbit);
+  try
+    {
+      std::tm tm_{};
+      if (from_http)
+        {  // Convert to ISO timestamp
+          dsin >> std::get_time(&tm_, "%a, %d %b %Y %H:%M:%S GMT");
+          std::time_t t = std::mktime(&tm_);
+          dsout << std::put_time(std::gmtime(&t), "%Y%m%dT%H%M%S");
+        }
+      else
+        {  // Convert to HTTP date
+          dsin >> std::get_time(&tm_, "%Y%m%dT%H%M%S");
+          std::time_t t = std::mktime(&tm_);
+          dsout << std::put_time(std::gmtime(&t), "%a, %d %b %Y %H:%M:%S GMT");
+        }
+    }
+  catch (...)
+    {
+      kovri::core::Exception ex(__func__);
+      ex.Dispatch();
+      return "";
+    }
+  return dsout.str();
+}
+
+}  // namespace util
+
 
 namespace http = boost::network::http;
 
@@ -425,6 +466,5 @@ void HTTP::MergeI2PChunkedResponse(
     }
   }
 }
-
 }  // namespace client
 }  // namespace kovri
