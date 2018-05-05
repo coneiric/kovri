@@ -91,9 +91,11 @@ void AddressBookStorage::RemoveAddress(
 **/
 
 std::size_t AddressBookStorage::Load(
-    std::map<std::string, kovri::core::IdentHash>& addresses) {
+    std::map<std::string, kovri::core::IdentHash>& addresses,
+    Subscription source)
+{
   std::size_t num = 0;
-  auto filename = core::GetPath(core::Path::AddressBook) / GetDefaultAddressesFilename();
+  auto filename = core::GetPath(core::Path::AddressBook) / GetAddressesFilename(source);
   std::ifstream file(filename.string());
   if (!file) {
     LOG(warning) << "AddressBookStorage: " << filename << " not found";

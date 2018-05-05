@@ -105,28 +105,19 @@ void AddressBook::SubscriberUpdateTimer(
       << "AddressBook: " << __func__ << " exception: " << ecode.message();
     return;
   }
-  // Load publishers (see below about multiple publishers)
   LoadPublishers();
-  // If ready, download new subscription (see #337 for multiple subscriptions)
-  if (m_SubscriptionIsLoaded
-      && !m_SubscriberIsDownloading
-      && m_SharedLocalDestination->IsReady()) {
-    LOG(debug) << "AddressBook: ready to download new subscription";
-    DownloadSubscription();
-  } else {
-    if (!m_SubscriptionIsLoaded) {
-      // If subscription not available, will attempt download with subscriber
-      LoadSubscriptionFromPublisher();
+  if (m_SharedLocalDestination->IsReady())
+      LoadSubscriptionFromPublisher();  // Attempt subscription download, timer updated internally
+  else
+    {  // Try again after timeout
+      m_SubscriberUpdateTimer->expires_from_now(boost::posix_time::minutes{
+          static_cast<long>(SubscriberTimeout::InitialRetry)});
+      m_SubscriberUpdateTimer->async_wait(
+          std::bind(
+              &AddressBook::SubscriberUpdateTimer,
+              this,
+              std::placeholders::_1));
     }
-    // Try again after timeout
-    m_SubscriberUpdateTimer->expires_from_now(
-        boost::posix_time::minutes{static_cast<long>(SubscriberTimeout::InitialRetry)});
-    m_SubscriberUpdateTimer->async_wait(
-        std::bind(
-            &AddressBook::SubscriberUpdateTimer,
-            this,
-            std::placeholders::_1));
-  }
 }
 
 void AddressBook::LoadPublishers() {
@@ -181,38 +172,28 @@ void AddressBook::LoadPublishers() {
 void AddressBook::LoadSubscriptionFromPublisher() {
   // Ensure subscriber is loaded with publisher(s) before service "starts"
   // (Note: look at how client tunnels start)
-  if (!m_PublishersLoaded)
+  if (m_Subscribers.empty())
     LoadPublishers();
   // Ensure we have a storage instance ready
   if (!m_Storage) {
     LOG(debug) << "AddressBook: creating new storage instance";
     m_Storage = GetNewStorageInstance();
   }
-  // If so, see if we have addresses from subscription already saved
-  // TODO(anonimal): in order to load new fresh subscriptions,
-  // we need to remove and/or work around this block and m_SubscriptionIsLoaded
-  if (m_Storage->Load(m_DefaultAddresses)) {
-    // If so, we don't need to download from a publisher
-    LOG(debug) << "AddressBook: subscription is already loaded";
-    m_SubscriptionIsLoaded = true;
-    return;
-  }
-  // If available, load default subscription from file
-  auto filename = GetDefaultSubscriptionFilename();
-  std::ifstream file((core::GetPath(core::Path::AddressBook) / filename).string());
-  LOG(info) << "AddressBook: loading subscription " << filename;
-  if (file) {  // Open subscription, validate, and save to storage
-    if (!SaveSubscription(file, Subscription::Default))
-      LOG(warning) << "AddressBook: could not load subscription " << filename;
-  } else {  // Use default publisher and download
-    LOG(warning) << "AddressBook: " << filename << " not found";
-    if (!m_SubscriberIsDownloading) {
-      LOG(debug) << "AddressBook: subscriber not downloading, downloading";
-      DownloadSubscription();
-    } else {
-      LOG(warning) << "AddressBook: subscriber is downloading";
+  m_SubscriptionIsLoaded = false;
+  // If addresses are unloaded, try local subscriptions
+  if (m_DefaultAddresses.empty())
+    {
+      LoadLocalSubscription(Subscription::Default);
+      LoadLocalSubscription(Subscription::User);
+      LoadLocalSubscription(Subscription::Private);
+      // If local subscription successfully loaded,
+      //   prevent unecessarily downloading subscription on startup.
+      m_SubscriptionIsLoaded = !m_DefaultAddresses.empty()
+                               || !m_UserAddresses.empty()
+                               || !m_PrivateAddresses.empty();
     }
-  }
+  DownloadSubscription();
+  HostsDownloadComplete(m_SubscriptionIsLoaded);
 }
 
 void AddressBook::LoadLocalSubscription(Subscription source)
@@ -263,19 +244,32 @@ void AddressBook::DownloadSubscription() {
   LOG(debug)
     << "AddressBook: picking random subscription from total publisher count: "
     << publisher_count;
-  // Pick a random publisher to subscribe from
-  // TODO(oneiric): download all subscriptions not already stored
-  auto publisher = kovri::core::RandInRange32(0, publisher_count - 1);
-  m_SubscriberIsDownloading = true;
   try {
-    m_Subscribers.at(publisher)->DownloadSubscription();
+    for (auto& sub : m_Subscribers)
+      {
+        // Check if download was successful last round, or if a local
+        //   subscription was loaded (we're on startup round).
+        if (m_SubscriptionIsLoaded)
+          break;
+        // Check for updates from unloaded subscriptions
+        if (sub.second && m_SharedLocalDestination)
+          {
+            // TODO(unassigned): remove check after GPG verfication implemented
+            if (sub.second->GetURI() == GetDefaultPublisherURI())
+              continue;  // Skip default subscription, if already loaded
+            if (!sub.second->IsDownloading() && !sub.second->IsLoaded()
+                && m_SharedLocalDestination->IsReady())
+              {
+                sub.second->DownloadSubscription();
+                m_SubscriptionIsLoaded = sub.second->IsLoaded();
+              }
+          }
+      }
   } catch (const std::exception& ex) {
     LOG(error) << "AddressBook: download subscription exception: " << ex.what();
   } catch (...) {
     LOG(error) << "AddressBook: download subscription unknown exception";
   }
-  // Ensure false here if exception occured before subscriber completed download
-  m_SubscriberIsDownloading = false;
 }
 
 void AddressBookSubscriber::DownloadSubscription() {

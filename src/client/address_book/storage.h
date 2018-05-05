@@ -50,6 +50,8 @@
 #include "core/util/filesystem.h"
 #include "core/util/log.h"
 
+#include "client/util/http.h"
+
 namespace kovri {
 namespace client {
 
@@ -166,8 +168,10 @@ class AddressBookStorage : public AddressBookDefaults {
   /// @brief Loads subscriptions from file into memory
   /// @return Number of subscriptions loaded
   /// @param addresses Reference to map of human-readable addresses to hashes
+  /// @param source Subscription type for which file to load
   std::size_t Load(
-      std::map<std::string, kovri::core::IdentHash>& addresses);
+      std::map<std::string, kovri::core::IdentHash>& addresses,
+      Subscription source);
 
   /// @brief Saves subscriptions to file in CSV format to verify addresses loaded
   /// @return Number of addresses saved

@@ -336,6 +336,12 @@ class AddressBookSubscriber : public AddressBookDefaults
   /// @brief Instantiates thread that fetches in-net subscriptions
   void DownloadSubscription();
 
+  /// @brief Returns URI from previous download
+  const std::string& GetURI() const
+  {
+    return m_HTTP.GetPreviousURI();
+  }
+
   /// @brief Returns Last-Modified date from previous download
   const std::string& GetLastModified() const
   {
