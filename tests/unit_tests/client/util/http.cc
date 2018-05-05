@@ -1,5 +1,5 @@
 /**                                                                                           //
- * Copyright (c) 2013-2017, The Kovri I2P Router Project                                      //
+ * Copyright (c) 2013-2018, The Kovri I2P Router Project                                      //
  *                                                                                            //
  * All rights reserved.                                                                       //
  *                                                                                            //
@@ -34,9 +34,18 @@
 
 #include "client/util/http.h"
 
-BOOST_AUTO_TEST_SUITE(HTTPUtilityTests)
+namespace util = kovri::client::util;
 
-kovri::client::HTTP http;
+struct HTTPFixture
+{
+  kovri::client::HTTP http;
+  std::string http_date{"Sun, 22 Apr 2018 07:19:30 GMT"};
+  std::string invalid_date{"Sun, 22 Apr 1000 99:99:99 GMT"};
+  std::string iso_timestamp{"20180422T071930"};
+  bool from_http = true;
+};
+
+BOOST_FIXTURE_TEST_SUITE(HTTPUtilityTests, HTTPFixture)
 
 BOOST_AUTO_TEST_CASE(UriParse) {
   // Note: cpp-netlib has better tests.
@@ -49,6 +58,29 @@ BOOST_AUTO_TEST_CASE(UriParse) {
 
   http.SetURI("http://username:password@udhdrtrcetjm5sxzskjyr5ztpeszydbh4dpl3pl4utgqqw2v4jna.b32.i2p/hosts.txt");
   BOOST_CHECK(http.GetURI().is_valid() && http.HostIsI2P());
+}
+
+BOOST_AUTO_TEST_CASE(ValidDateParse)
+{
+  // Check correct timestamp parsing from HTTP date
+  BOOST_CHECK_NO_THROW(util::ConvertHTTPDate(http_date, from_http));
+  BOOST_CHECK(iso_timestamp == util::ConvertHTTPDate(http_date, from_http));
+
+  // Check correct HTTP date parsing from timestamp
+  BOOST_CHECK_NO_THROW(util::ConvertHTTPDate(iso_timestamp, !from_http));
+  BOOST_CHECK(http_date == util::ConvertHTTPDate(iso_timestamp, !from_http));
+}
+
+BOOST_AUTO_TEST_CASE(InvalidDateParse)
+{
+  // Check that an incorrect date fails
+  BOOST_CHECK(util::ConvertHTTPDate(invalid_date, from_http).empty());
+
+  // Check that parsing an HTTP date as an ISO timestamp fails
+  BOOST_CHECK(util::ConvertHTTPDate(http_date, !from_http).empty());
+
+  // Check that parsing an ISO timestamp as an HTTP date fails
+  BOOST_CHECK(util::ConvertHTTPDate(iso_timestamp, from_http).empty());
 }
 
 BOOST_AUTO_TEST_SUITE_END()
