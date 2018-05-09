@@ -170,6 +170,14 @@ class AddressBookStorage : public AddressBookDefaults {
       const std::map<std::string, kovri::core::IdentHash>& addresses,
       Subscription source);
 
+  /// @brief Saves subscriptions to file in hosts.txt format
+  /// @return Number of addresses saved
+  /// @param addresses Const reference to map of human-readable hostname to b64 identity
+  /// @param source Subscription type for where to save addresses
+  std::size_t SaveSubscription(
+      const std::map<std::string, kovri::core::IdentityEx>& addresses,
+      Subscription source);
+
  private:
   /// @return Address book path with appended addresses location
   boost::filesystem::path GetAddressesPath() const {

@@ -157,6 +157,50 @@ std::size_t AddressBookStorage::Save(
   return num;
 }
 
+std::size_t AddressBookStorage::SaveSubscription(
+    const std::map<std::string, kovri::core::IdentityEx>& addresses,
+    Subscription source)
+{
+  std::size_t num = 0;
+  try
+    {
+      // TODO(oneiric): GPG verification of the downloaded subcription
+      //   needs to be implemented to safely update the default subscription.
+      if (source == Subscription::Default)
+        {
+          throw std::runtime_error(
+              "AddressBookSubscription: default subscription is read-only");
+        }
+      auto filename = core::GetPath(core::Path::AddressBook)
+                      / GetSubscriptionFilename(source);
+      // Append subscription entries to storage file. On first call, all
+      //   entries from the subscription stream will be added. Every call
+      //   after will only append unique entries from the subscription.
+      //   Caller must ensure unique entries.
+      kovri::core::OutputFileStream file(
+          filename.string(), std::ios::out | std::ios::app);
+      if (!file.Good())
+        {
+          throw std::runtime_error(
+              "AddressBookStorage: can't open subscription file "
+              + GetSubscriptionFilename(source));
+        }
+      for (auto const& it : addresses)
+        {
+          std::string const line(it.first + "=" + it.second.ToBase64() + "\n");
+          file.Write(const_cast<char*>(line.c_str()), line.size());
+          ++num;
+        }
+    }
+  catch (...)
+    {
+      kovri::core::Exception ex(__func__);
+      ex.Dispatch();
+    }
+  LOG(info) << "AddressBookStorage: " << num << " addresses saved";
+  return num;
+}
+
 std::string AddressBookDefaults::GetSubscriptionFilename(
     AddressBookDefaults::Subscription source)
 {

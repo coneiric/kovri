@@ -302,6 +302,7 @@ bool AddressBook::SaveSubscription(
       LOG(debug) << "AddressBook: processing " << addresses.size() << " addresses";
       // Stream may be a file or downloaded stream.
       // Save hosts and matching identities
+      std::map<std::string, kovri::core::IdentityEx> storage_addresses{};
       for (auto const& address : addresses) {
         const std::string& host = address.first;
         const auto& ident = address.second;
@@ -309,6 +310,8 @@ bool AddressBook::SaveSubscription(
           {
             // Only stores subscription lines for addresses not already loaded
             InsertAddress(host, ident.GetIdentHash(), source);
+            // Save entry to storage map
+            storage_addresses[host] = ident;
             // Save entry to ident_hash.b32 file for simple identity lookup
             m_Storage->AddAddress(ident);
           }
@@ -333,6 +336,9 @@ bool AddressBook::SaveSubscription(
         default:
           throw std::invalid_argument("AddressBook: unknown subscription source");
       }
+      // Update storage subscription.
+      if (!storage_addresses.empty())
+        m_Storage->SaveSubscription(storage_addresses, source);
       m_SubscriptionIsLoaded = true;
     }
   } catch (...) {
