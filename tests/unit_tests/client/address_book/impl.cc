@@ -222,15 +222,18 @@ BOOST_AUTO_TEST_CASE(RejectDuplicateEntry)
   BOOST_CHECK_NO_THROW(kovri::client::BookEntry entry(subscription.front()));
   kovri::client::BookEntry entry(subscription.front());
 
+  auto source = kovri::client::AddressBook::Subscription::User;
   // Ensure valid entry is inserted
-  BOOST_CHECK_NO_THROW(book.InsertAddress(entry.get_host(), entry.get_address()));
+  BOOST_CHECK_NO_THROW(
+      book.InsertAddress(entry.get_host(), entry.get_address(), source));
   // Ensure address book throws for duplicate host
   BOOST_CHECK_THROW(
-      book.InsertAddress(entry.get_host(), entry.get_address()),
+      book.InsertAddress(entry.get_host(), entry.get_address(), source),
       std::runtime_error);
   // Ensure address book throws for duplicate address
   BOOST_CHECK_THROW(
-      book.InsertAddress("unique." + entry.get_host(), entry.get_address()),
+      book.InsertAddress(
+          "unique." + entry.get_host(), entry.get_address(), source),
       std::runtime_error);
 }
 
