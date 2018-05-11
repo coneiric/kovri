@@ -74,12 +74,41 @@ enum struct Timeout : std::uint8_t {
 /// @brief Storage for class HTTP
 class HTTPStorage {
  public:
+  HTTPStorage() {};
+
+  /// @brief Move-constructor for HTTPStorage class
+  /// @param uri Full URI
+  /// @param etag HTTP ETag header value
+  /// @param last_modified HTTP Last-Modified header value
+  /// @notes Useful for reading publisher metadata from disk
+  /// @notes Needed when creating unique pointers to AddressBookSubscribers
+  HTTPStorage(std::string uri, std::string etag, std::string last_modified)
+      : m_StorageURI(std::move(uri)),
+        m_ETag(std::move(etag)),
+        m_LastModified(std::move(last_modified))
+  {
+  }
+
   /// @brief Set URI path to test against future downloads
   /// @param path URI path
   /// @notes Needed in conjunction with ETag
   void SetPath(
       const std::string& path) {
     m_Path.assign(path);
+  }
+
+  /// @brief Set full URI to store to disk
+  /// @param uri Full URI
+  /// @notes Needed for writing publisher metadata to disk
+  void SetStorageURI(const std::string& uri)
+  {
+    m_StorageURI.assign(uri);
+  }
+
+  /// @brief Get previous storage URI
+  const std::string& GetPreviousURI() const
+  {
+    return m_StorageURI;
   }
 
   /// @brief Get previously set URI path
@@ -130,7 +159,26 @@ class HTTPStorage {
     return m_Stream;
   }
 
+  /// @brief Write download metadata to disk
+  /// @param path Filesystem path to metadata directory
+  /// @notes Used primarily for subscriptions. Can be extended to auto-update & reseed
+  void StoreMetadata(const boost::filesystem::path& path);
+
+  /// @brief Calculate and set Base32-encoded SHA256 hash of download metadata
+  void CalculateMetaHash();
+
+  /// @brief Gets Base32-encoded SHA256 hash of download metadata
+  const std::string& GetMetaHash() const
+  {
+    return m_MetaHash;
+  }
+
  private:
+  /// @var m_StoreURI
+  /// @brief Full URI string for reading from and writing to disk
+  /// @notes Used primarily for subscriptions. Can be extended to auto-update
+  std::string m_StorageURI;
+
   /// @var m_Path
   /// @brief Path value from a 1st request that can be tested against later
   /// @notes If path is same as previous request, apply required header values
@@ -149,6 +197,11 @@ class HTTPStorage {
   /// @var m_Stream
   /// @brief Downloaded contents
   std::string m_Stream;  // TODO(anonimal): consider refactoring into an actual stream
+
+  /// @var m_MetaHash
+  /// @brief Base32-encoded SHA256 hash of download metadata
+  /// @notes Used primarily for subscriptions. Can be extended to auto-update & reseed
+  std::string m_MetaHash;
 };
 
 /// @class HTTP
@@ -165,6 +218,7 @@ class HTTP : public HTTPStorage {
   HTTP(const std::string& uri) : m_URI(uri)
   {
     LOG(debug) << "HTTP: constructor URI " << uri;
+    SetStorageURI(uri);
   }
 
   /// @brief Set cpp-netlib URI object if not set with ctor
@@ -179,6 +233,8 @@ class HTTP : public HTTPStorage {
     }
     // Set new URI
     m_URI.append(uri);
+    // Set storage URI
+    SetStorageURI(uri);
   }
 
   /// @brief Get initialized URI

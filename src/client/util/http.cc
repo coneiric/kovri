@@ -38,6 +38,9 @@
 
 #include <chrono>
 #include <ctime>
+
+#include <cryptopp/sha.h>
+
 #include <exception>
 #include <functional>
 #include <locale>
@@ -46,6 +49,9 @@
 
 #include "client/address_book/impl.h"
 #include "client/context.h"
+
+#include "core/crypto/hash.h"
+#include "core/crypto/radix.h"
 
 #include "core/router/context.h"
 
@@ -466,5 +472,57 @@ void HTTP::MergeI2PChunkedResponse(
     }
   }
 }
+
+void HTTPStorage::StoreMetadata(const boost::filesystem::path& path)
+{
+  if (m_StorageURI.empty())
+    throw std::runtime_error("AddressBook: empty publisher URI");
+  // Attempt to remove previous metadata file
+  // Calculate hash of metadata for constant filename size, and later comparison
+  CalculateMetaHash();
+  std::string const filename(m_MetaHash + ".csv");
+  // Open metadata file for writing, overwrite the contents
+  kovri::core::OutputFileStream metadata_file(
+      (path / filename).string(), std::ios::out | std::ios::trunc);
+  if (!metadata_file.Good())
+    throw std::runtime_error("HTTPStorage: unable to open metadata file");
+  std::string metadata_csv(m_StorageURI);
+  if (m_ETag.empty() || m_LastModified.empty())
+    {
+      LOG(debug) << "HTTPStorage: empty ETag or Last-Modified field(s), "
+                      "only writing URI to storage";
+    }
+  else if (kovri::client::util::ConvertHTTPDate(m_LastModified, true).empty())
+    {
+      LOG(error) << "HTTPStorage: error converting Last-Modified field, only "
+                    "writing URI to storage";
+    }
+  else
+    {
+      metadata_csv.append(
+          ",E:" + m_ETag
+          + ",L:" + kovri::client::util::ConvertHTTPDate(m_LastModified, true));
+    }
+  // Overwrite previous metadata contents
+  metadata_file.Write(
+      const_cast<char*>(metadata_csv.data()), metadata_csv.length());
+}
+
+void HTTPStorage::CalculateMetaHash()
+{
+  // Calculate SHA256 hash of URI for constant filename size.
+  // Also useful for comparing differences between in-memory and stored
+  //   publisher metadata.
+  core::SHA256 hash;
+  URI uri(m_StorageURI);
+  std::string const metadata(uri.host() + uri.path());
+  std::uint8_t digest[CryptoPP::SHA256::DIGESTSIZE];
+  hash.CalculateDigest(
+      digest,
+      reinterpret_cast<const std::uint8_t*>(metadata.data()),
+      metadata.length());
+  m_MetaHash = core::Base32::Encode(digest, CryptoPP::SHA256::DIGESTSIZE);
+}
+
 }  // namespace client
 }  // namespace kovri
