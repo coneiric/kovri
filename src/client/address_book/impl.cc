@@ -130,58 +130,52 @@ void AddressBook::SubscriberUpdateTimer(
 }
 
 void AddressBook::LoadPublishers() {
-  // TODO(unassigned): this is a one-shot: we won't be able to
-  // edit publisher's file manually with any effect after router start
-  // References #337
-  if (m_PublishersLoaded) {
-    LOG(debug) << "AddressBook: publisher(s) already loaded";
-    return;
-  }
-  auto publishers = GetDefaultPublishersFilename();
-  LOG(info) << "AddressBook: loading publisher file " << publishers;
-  std::ifstream file((core::GetPath(core::Path::AddressBook) / publishers).string());
-  if (file) {
-    // Publisher URI
-    std::string publisher;
-    // Validate publisher URI
-    boost::network::uri::uri uri;
-    // Read in publishers, line by line
-    while (std::getline(file, publisher)) {
-      // If found, clear whitespace before and after publisher (on the line)
-      publisher.erase(
-          std::remove_if(
-              publisher.begin(),
-              publisher.end(),
-              [](char whitespace) { return std::isspace(whitespace); }),
-          publisher.end());
-      // If found, skip empty line
-      if (!publisher.length())
-        continue;
-      // Perform URI sanity test
-      if (!uri.string().empty())
-        uri = boost::network::uri::uri();
-      uri.append(publisher);
+  if (!m_Storage)
+    {
+      LOG(debug) << "AddressBook: creating new storage instance";
+      m_Storage = GetNewStorageInstance();
+    }
+  std::vector<HTTPStorage> publishers{};
+  // Attempt to load publisher metadata from storage
+  m_Storage->LoadPublishers(publishers);
+  // Must iterate, cannot create std::unique_ptr from copyable type
+  for (auto it = std::begin(publishers); it != std::end(publishers); ++it)
+    {
+      URI uri(it->GetPreviousURI());
       if (!uri.is_valid())
         {
-          LOG(warning)
-              << "AddressBook: invalid/malformed publisher URI, skipping";
+          LOG(warning) << "AddressBook: invalid publisher URI";
           continue;
         }
-      // Save publisher to subscriber
-      m_Subscribers.push_back(
-          std::make_unique<AddressBookSubscriber>(*this, publisher));
+      // Index subscribers by hostname and path for publishers with
+      //   multiple subscriptions.
+      std::string const sub_index = uri.host() + uri.path();
+      if (m_Subscribers[sub_index])
+        {
+          if (it->GetPreviousLastModified()
+              <= m_Subscribers.at(sub_index)->GetLastModified())
+            continue;  // Latest publisher information already loaded
+          else
+            {  // Update with newer publisher information from storage
+              m_Subscribers[sub_index] =
+                  std::make_unique<AddressBookSubscriber>(
+                      *this,
+                      it->GetPreviousURI(),
+                      it->GetPreviousETag(),
+                      it->GetPreviousLastModified());
+            }
+        }
+      else
+        {
+          m_Subscribers.emplace(
+              sub_index,
+              std::make_unique<AddressBookSubscriber>(
+                  *this,
+                  it->GetPreviousURI(),
+                  it->GetPreviousETag(),
+                  it->GetPreviousLastModified()));
+        }
     }
-    LOG(info)
-      << "AddressBook: " << m_Subscribers.size() << " publishers loaded";
-  } else {
-    auto publisher = GetDefaultPublisherURI();
-    LOG(warning)
-      << "AddressBook: " << publishers << " unavailable; using " << publisher;
-    m_Subscribers.push_back(
-        std::make_unique<AddressBookSubscriber>(*this, publisher));
-    // TODO(anonimal): create default publisher file if file is missing
-  }
-  m_PublishersLoaded = true;
 }
 
 void AddressBook::LoadSubscriptionFromPublisher() {

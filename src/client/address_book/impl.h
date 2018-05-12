@@ -279,8 +279,9 @@ class AddressBook : public AddressBookDefaults {
   std::unique_ptr<AddressBookStorage> m_Storage;
 
   /// @var m_Subscribers
-  /// @brief Vector of unique pointers to respective subscriber implementation
-  std::vector<std::unique_ptr<AddressBookSubscriber>> m_Subscribers;
+  /// @brief Map of hostnames to respective subscriber implementation
+  /// @details Enables updating previously loaded subscribers
+  std::unordered_map<std::string, std::unique_ptr<AddressBookSubscriber>> m_Subscribers;
 
   /// @var m_SubscriberUpdateTimer
   /// @brief Unique pointer to Boost.Asio deadline_timer
@@ -312,8 +313,31 @@ class AddressBookSubscriber : public AddressBookDefaults
       : m_Book(book),
         m_HTTP(uri) {}
 
+  /// @brief Initializes publisher metadata for address book subscriptions
+  /// @param uri Publisher URI
+  /// @param etag HTTP ETag header value
+  /// @param last_modified HTTP Last-Modified header value
+  /// @notes Useful when constructing from metadata stored on disk
+  AddressBookSubscriber(
+      AddressBook& book,
+      const std::string& uri,
+      const std::string& etag,
+      const std::string& last_modified)
+      : m_Book(book), m_HTTP(uri)
+  {
+    m_HTTP.SetETag(etag);
+    m_HTTP.SetLastModified(last_modified);
+    m_HTTP.SetPath(m_HTTP.GetURI().path());
+  }
+
   /// @brief Instantiates thread that fetches in-net subscriptions
   void DownloadSubscription();
+
+  /// @brief Returns Last-Modified date from previous download
+  const std::string& GetLastModified() const
+  {
+    return m_HTTP.GetPreviousLastModified();
+  }
 
  private:
   /// @brief Implementation for downloading subscription (hosts.txt)
