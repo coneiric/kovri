@@ -39,6 +39,7 @@ namespace client {
 
 AddressBookStorage::AddressBookStorage() {
   kovri::core::EnsurePath(GetAddressesPath());
+  kovri::core::EnsurePath(GetPublishersPath());
 }
 
 bool AddressBookStorage::GetAddress(
@@ -239,6 +240,115 @@ std::string AddressBookDefaults::GetAddressesFilename(
         throw std::invalid_argument("AddressBookStorage: unknown subscription source");
     };
   return filename;
+}
+
+void AddressBookStorage::LoadPublishers(std::vector<HTTPStorage>& publishers)
+{
+  // Parse metadata from the supplied file
+  auto parse_publisher_metadata =
+      [&publishers](std::istream& metadata_stream) {
+        if (!metadata_stream.good())
+          {
+            LOG(error) << "AddressBook: unable to read publisher metadata";
+            return;
+          }
+        // Publisher metadata buffer, no publisher line should be over 1KB
+        std::array<char, 1024> pub_buffer{};
+        metadata_stream.getline(pub_buffer.data(), pub_buffer.size());
+        std::string publisher(std::begin(pub_buffer), std::end(pub_buffer));
+        // Remove whitespace from beginning and end of line
+        boost::trim(publisher);
+        if (!publisher.length())
+        {
+          LOG(debug) << "AddressBook: empty publisher metadata";
+          return;  // Empty publisher file
+        }
+        // Parse file metadata
+        boost::char_separator<char> sep(",");
+        using tokenizer = boost::tokenizer<boost::char_separator<char> >;
+        tokenizer tokens(publisher, sep);
+        std::string uri, etag, last_modified;
+        // Necessary delimiters until proper database implementation
+        // TODO(oneiric): replace with proper LMDB cursors
+        const std::string uri_key{"http"}, etag_key{"E:"}, lm_key{"L:"};
+        for (tokenizer::iterator tok_it = tokens.begin();
+             tok_it != tokens.end();
+             ++tok_it)
+          {
+            if (tok_it->find(uri_key) != std::string::npos)
+              uri = *tok_it;
+            else if (tok_it->find(etag_key) != std::string::npos)
+              {  // Set ETag to value following the key
+                etag = tok_it->substr(tok_it->find(etag_key) + etag_key.size());
+              }
+            else if (tok_it->find(lm_key) != std::string::npos)
+              {  // Set last-Modified to value following the key
+                last_modified =
+                    tok_it->substr(tok_it->find(lm_key) + lm_key.size());
+              }
+          }
+        // Check if metadata was parsed
+        if (!uri.empty())
+          {
+            if (etag.empty() || last_modified.empty())
+              {
+                LOG(debug) << "AddressBook: only URI metadata was parsed";
+                // Only store URI
+                publishers.emplace_back(uri, "", "");
+              }
+            else
+              publishers.emplace_back(uri, etag, last_modified);
+          }
+      };
+  // Load default publisher
+  auto default_pub_path = kovri::core::GetPath(core::Path::AddressBook)
+                                / GetDefaultPublishersFilename();
+  if (boost::filesystem::exists(default_pub_path))
+    {
+      std::ifstream default_pub_file;
+      default_pub_file.open(default_pub_path.string(), std::ios::in);
+      if (!default_pub_file.is_open())
+        {
+          LOG(warning) << "AddressBook: unable to open: "
+                       << default_pub_path.string();
+        }
+      else
+        {
+          parse_publisher_metadata(default_pub_file);
+          default_pub_file.close();
+        }
+    }
+  // Load user publishers
+  if (boost::filesystem::is_directory(GetPublishersPath()))
+    {
+      boost::filesystem::directory_iterator end_itr;
+      // Iterate over all files in the "publishers" directory
+      for (boost::filesystem::directory_iterator dir_itr(GetPublishersPath());
+           dir_itr != end_itr;
+           ++dir_itr)
+        {
+          auto publisher_path = dir_itr->path().filename();
+          std::ifstream publisher_file;
+          publisher_file.open(
+              (GetPublishersPath() / publisher_path).string(), std::ios::in);
+          if (!publisher_file.is_open())
+            {
+              LOG(warning) << "AddressBook: unable to open: "
+                           << publisher_path.string();
+            }
+          else
+            {
+              parse_publisher_metadata(publisher_file);
+              publisher_file.close();
+            }
+        }
+    }
+  else
+    {
+      LOG(warning) << "AddressBook: unable to find publisher directory";
+    }
+  LOG(info) << "AddressBook: " << publishers.size()
+            << " publishers loaded";
 }
 }  // namespace client
 }  // namespace kovri

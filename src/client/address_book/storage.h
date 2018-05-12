@@ -42,6 +42,8 @@
 #include <string>
 #include <vector>
 
+#include "client/util/http.h"
+
 #include "core/router/identity.h"
 #include "core/router/context.h"
 
@@ -89,6 +91,11 @@ struct AddressBookDefaults {
     return "https://downloads.getmonero.org/kovri/hosts.txt";
     // Below is only used for testing in-net download (this is *not* our default subscription)
     //return "http://udhdrtrcetjm5sxzskjyr5ztpeszydbh4dpl3pl4utgqqw2v4jna.b32.i2p/hosts.txt";
+  }
+
+  /// @return Address book path with appended publishers location
+  boost::filesystem::path GetPublishersPath() const {
+    return core::GetPath(core::Path::AddressBook) / "publishers";
   }
 
   /// @brief Gets default subscription filename
@@ -177,6 +184,10 @@ class AddressBookStorage : public AddressBookDefaults {
   std::size_t SaveSubscription(
       const std::map<std::string, kovri::core::IdentityEx>& addresses,
       Subscription source);
+
+  /// @brief Loads default and user publishers from storage
+  /// @param publishers Container to hold loaded publisher metadata
+  void LoadPublishers(std::vector<HTTPStorage>& publishers);
 
  private:
   /// @return Address book path with appended addresses location
