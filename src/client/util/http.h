@@ -61,6 +61,10 @@ std::string ConvertHTTPDate(std::string const& date, bool from_http);
 
 }  // namespace util
 
+/// @alias URI
+/// @brief URI type alias for easier cpp-netlib / Boost.Beast refactoring
+using URI = boost::network::uri::uri;
+
 /// @enum Timeout
 /// @brief Constants used for HTTP timeout lengths when downloading
 /// @notes Scoped to prevent namespace pollution (otherwise, purely stylistic)
@@ -228,7 +232,7 @@ class HTTP : public HTTPStorage {
     LOG(debug) << "HTTP: Set URI " << uri;
     // Remove existing URI if set
     if (!m_URI.string().empty()) {
-      boost::network::uri::uri new_uri;
+      URI new_uri;
       m_URI.swap(new_uri);
     }
     // Set new URI
@@ -239,7 +243,7 @@ class HTTP : public HTTPStorage {
 
   /// @brief Get initialized URI
   /// @return cpp-netlib URI object
-  boost::network::uri::uri GetURI() const
+  URI GetURI() const
   {
     return m_URI;
   }
@@ -278,7 +282,7 @@ class HTTP : public HTTPStorage {
  private:
   /// @var m_URI
   /// @brief cpp-netlib URI instance
-  boost::network::uri::uri m_URI;
+  URI m_URI;
 
   // TODO(anonimal): consider removing typedefs after refactor
   // TODO(anonimal): remove the following notes after refactor
