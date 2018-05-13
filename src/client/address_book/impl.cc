@@ -579,7 +579,11 @@ void AddressBook::Stop() {
   }
   // Save addresses to storage
   if (m_Storage) {
-    m_Storage->Save(m_DefaultAddresses);
+    m_Storage->Save(m_DefaultAddresses, Subscription::Default);
+    if (!m_UserAddresses.empty())
+      m_Storage->Save(m_UserAddresses, Subscription::User);
+    if (!m_PrivateAddresses.empty())
+      m_Storage->Save(m_PrivateAddresses, Subscription::Private);
     m_Storage.reset(nullptr);
   }
   m_Subscribers.clear();
