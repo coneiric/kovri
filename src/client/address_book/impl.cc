@@ -239,26 +239,43 @@ void AddressBook::DownloadSubscription() {
 void AddressBookSubscriber::DownloadSubscription() {
   // TODO(unassigned): exception handling
   LOG(debug) << "AddressBookSubscriber: creating thread for download";
-  std::thread download(&AddressBookSubscriber::DownloadSubscriptionImpl, this);
-  download.join();
+  m_Downloading = true;
+  try
+    {
+      std::thread download(
+          &AddressBookSubscriber::DownloadSubscriptionImpl, this);
+      if (download.joinable())
+        download.join();
+    }
+  catch (const std::exception& ex)
+    {
+      LOG(error) << "AddressBook: download subscription exception: "
+                 << ex.what();
+    }
+  catch (...)
+    {
+      LOG(error) << "AddressBook: download subscription unknown exception";
+    }
+  m_Downloading = false;
 }
 
 void AddressBookSubscriber::DownloadSubscriptionImpl() {
   // TODO(anonimal): ensure thread safety
   LOG(info)
     << "AddressBookSubscriber: downloading subscription "
-    << m_HTTP.GetURI().string()
+    << m_HTTP.GetPreviousURI()
     << " ETag: " << m_HTTP.GetPreviousETag()
     << " Last-Modified: " << m_HTTP.GetPreviousLastModified();
-  bool download_result = m_HTTP.Download();
-  if (download_result) {
+  m_Loaded = m_HTTP.Download();
+  if (m_Loaded) {
     std::stringstream stream(m_HTTP.GetDownloadedContents());
-    if (!m_Book.SaveSubscription(stream, Subscription::User)) {
-      // Error during validation or storage, download again later
-      download_result = false;
-    }
+    // Determine where to save addresses
+    auto source = m_HTTP.GetPreviousURI() == GetDefaultPublisherURI()
+                      ? Subscription::Default
+                      : Subscription::User;
+    // Set loaded status based on successful save
+    m_Loaded = m_Book.SaveSubscription(stream, source);
   }
-  m_Book.HostsDownloadComplete(download_result);
 }
 
 void AddressBook::HostsDownloadComplete(

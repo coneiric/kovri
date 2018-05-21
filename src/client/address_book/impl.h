@@ -339,6 +339,18 @@ class AddressBookSubscriber : public AddressBookDefaults
     return m_HTTP.GetPreviousLastModified();
   }
 
+  /// @brief Returns download status for this subscription
+  bool IsDownloading() const
+  {
+    return m_Downloading;
+  }
+
+  /// @brief Returns loaded status for this subscription
+  bool IsLoaded() const
+  {
+    return m_Loaded;
+  }
+
  private:
   /// @brief Implementation for downloading subscription (hosts.txt)
   /// @warning Must be run in separate thread
@@ -351,6 +363,14 @@ class AddressBookSubscriber : public AddressBookDefaults
   /// @var m_HTTP
   /// @brief HTTP instance for subscribing to publisher
   HTTP m_HTTP;
+
+  /// @var m_Downloading
+  /// @brief Boolean indicating whether this subscription is downloading
+  std::atomic<bool> m_Downloading;
+
+  /// @var m_Loaded
+  /// @brief Boolean indicating whether this subscription has been loaded
+  std::atomic<bool> m_Loaded;
 };
 
 }  // namespace client
