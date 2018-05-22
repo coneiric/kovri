@@ -348,6 +348,13 @@ class AddressBookSubscriber : public AddressBookDefaults
     return m_HTTP.GetPreviousLastModified();
   }
 
+  /// @brief Sets the downloading status for this subscription
+  /// @param is_downloading Download status
+  void SetDownloading(bool is_downloading)
+  {
+    m_Downloading = is_downloading;
+  }
+
   /// @brief Returns download status for this subscription
   bool IsDownloading() const
   {

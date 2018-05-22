@@ -618,31 +618,44 @@ void AddressBook::Stop() {
     m_SubscriberUpdateTimer->cancel();
     m_SubscriberUpdateTimer.reset(nullptr);
   }
-  // Finish downloading
-  if (m_SubscriberIsDownloading) {
-    LOG(info)
-      << "AddressBook: subscription is downloading, waiting for termination";
-    for (std::size_t seconds = 0;
-         seconds < static_cast<std::uint16_t>(kovri::client::Timeout::Receive);
-         seconds++) {
-      if (!m_SubscriberIsDownloading) {
-        LOG(info) << "AddressBook: subscription download complete";
-        break;
-      }
-      std::this_thread::sleep_for(std::chrono::seconds(1));
+  for (auto& sub : m_Subscribers)
+    {
+      if (sub.second)
+        {
+          // Finish downloading
+          if (sub.second->IsDownloading())
+            {
+              LOG(info)
+                  << "AddressBook: subscription is downloading, waiting for "
+                     "termination";
+              for (std::size_t seconds = 0;
+                   seconds < static_cast<std::uint16_t>(
+                                 kovri::client::Timeout::Receive);
+                   seconds++)
+                {
+                  if (!sub.second->IsDownloading())
+                    {
+                      LOG(info)
+                          << "AddressBook: subscription download complete";
+                      break;
+                    }
+                  std::this_thread::sleep_for(std::chrono::seconds(1));
+                }
+              LOG(error) << "AddressBook: subscription download hangs";
+              sub.second->SetDownloading(false);
+            }
+        }
     }
-    LOG(error) << "AddressBook: subscription download hangs";
-    m_SubscriberIsDownloading = false;
-  }
   // Save addresses to storage
-  if (m_Storage) {
-    m_Storage->Save(m_DefaultAddresses, Subscription::Default);
-    if (!m_UserAddresses.empty())
-      m_Storage->Save(m_UserAddresses, Subscription::User);
-    if (!m_PrivateAddresses.empty())
-      m_Storage->Save(m_PrivateAddresses, Subscription::Private);
-    m_Storage.reset(nullptr);
-  }
+  if (m_Storage)
+    {
+      m_Storage->Save(m_DefaultAddresses, Subscription::Default);
+      if (!m_UserAddresses.empty())
+        m_Storage->Save(m_UserAddresses, Subscription::User);
+      if (!m_PrivateAddresses.empty())
+        m_Storage->Save(m_PrivateAddresses, Subscription::Private);
+      m_Storage.reset(nullptr);
+    }
   m_Subscribers.clear();
 }
 
