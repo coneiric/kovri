@@ -644,6 +644,7 @@ void AddressBook::Stop() {
               LOG(error) << "AddressBook: subscription download hangs";
               sub.second->SetDownloading(false);
             }
+          sub.second->StoreMetadata();
         }
     }
   // Save addresses to storage

@@ -367,6 +367,12 @@ class AddressBookSubscriber : public AddressBookDefaults
     return m_Loaded;
   }
 
+  /// @brief Wrapper for storing publisher metadata
+  void StoreMetadata()
+  {
+    m_HTTP.StoreMetadata(GetPublishersPath());
+  }
+
  private:
   /// @brief Implementation for downloading subscription (hosts.txt)
   /// @warning Must be run in separate thread
