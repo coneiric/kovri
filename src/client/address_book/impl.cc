@@ -215,6 +215,48 @@ void AddressBook::LoadSubscriptionFromPublisher() {
   }
 }
 
+void AddressBook::LoadLocalSubscription(Subscription source)
+{
+  // Ensure we have a storage instance ready
+  if (!m_Storage)
+    {
+      LOG(debug) << "AddressBook: creating new storage instance";
+      m_Storage = GetNewStorageInstance();
+    }
+  bool loaded = false;
+  // Attempt to load from storage catalog
+  switch (source)
+    {
+      case Subscription::Default:
+        loaded = m_DefaultAddresses.empty()
+                     ? m_Storage->Load(m_DefaultAddresses, source)
+                     : true;
+        break;
+      case Subscription::User:
+        loaded = m_UserAddresses.empty()
+                     ? m_Storage->Load(m_UserAddresses, source)
+                     : true;
+        break;
+      case Subscription::Private:
+        loaded = m_PrivateAddresses.empty()
+                     ? m_Storage->Load(m_PrivateAddresses, source)
+                     : true;
+        break;
+      default:
+        throw std::invalid_argument("AddressBook: unknown subscription source");
+    }
+  if (!loaded)
+    {
+      auto filename = GetSubscriptionFilename(source);
+      std::ifstream file(
+          (core::GetPath(core::Path::AddressBook) / filename).string());
+      if (file)
+        SaveSubscription(file, source);
+      else
+        LOG(warning) << "AddressBook: unable to open subscription " << filename;
+    }
+}
+
 void AddressBook::DownloadSubscription() {
   // Get number of available publishers (guaranteed > 0)
   auto publisher_count = m_Subscribers.size();

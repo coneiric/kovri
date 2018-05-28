@@ -238,6 +238,9 @@ class AddressBook : public AddressBookDefaults {
   /// @details If not on filesystem, downloads subscription from a publisher
   void LoadSubscriptionFromPublisher();
 
+  /// @brief Loads local hosts file (subscription)
+  void LoadLocalSubscription(Subscription source);
+
   /**
   // TODO(unassigned): currently unused
   /// @brief Creates new instance of storage for address book
