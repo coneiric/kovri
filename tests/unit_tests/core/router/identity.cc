@@ -43,6 +43,7 @@
 #include "tests/unit_tests/core/router/identity.h"
 
 namespace core = kovri::core;
+namespace crypto = core::crypto;
 
 BOOST_FIXTURE_TEST_SUITE(IdentityExTests, IdentityExFixture)
 
@@ -66,13 +67,11 @@ BOOST_AUTO_TEST_CASE(ParseIdentity)
       identity.GetSigningKeyType(),
       core::SIGNING_KEY_TYPE_EDDSA_SHA512_ED25519);
   BOOST_CHECK_EQUAL(identity.GetCryptoKeyType(), core::CRYPTO_KEY_TYPE_ELGAMAL);
-  // Check sig lengths
-  BOOST_CHECK_EQUAL(
-      identity.GetSigningPublicKeyLen(), core::EDDSA25519_PUBLIC_KEY_LENGTH);
-  BOOST_CHECK_EQUAL(
-      identity.GetSigningPrivateKeyLen(), core::EDDSA25519_PRIVATE_KEY_LENGTH);
-  BOOST_CHECK_EQUAL(
-      identity.GetSignatureLen(), core::EDDSA25519_SIGNATURE_LENGTH);
+
+  // Check lengths
+  BOOST_CHECK_EQUAL(identity.GetSigningPublicKeyLen(), crypto::PkLen::Ed25519);
+  BOOST_CHECK_EQUAL(identity.GetSigningPrivateKeyLen(), crypto::SkLen::Ed25519);
+  BOOST_CHECK_EQUAL(identity.GetSignatureLen(), crypto::SigLen::Ed25519);
 }
 
 BOOST_AUTO_TEST_CASE(ParseIdentityFailure)
