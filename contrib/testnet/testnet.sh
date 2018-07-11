@@ -100,6 +100,7 @@ reseed_file="reseed.zip"
 
 web_entrypoint="webserver.sh"
 fw_entrypoint="firewall.sh"
+ssh_entrypoint="ssh.sh"
 
 PrintUsage()
 {
@@ -365,6 +366,8 @@ Create()
 
   # Create unfirewalled testnet
   for _seq in $($base_sequence); do
+    local _extra_opts="-v ${KOVRI_REPO}/${docker_dir}/entrypoints/${ssh_entrypoint}:/${ssh_entrypoint} \
+      --entrypoint /${ssh_entrypoint}"
     # Create data dir
     create_data_dir $_seq
 
@@ -372,7 +375,7 @@ Create()
     create_ri $_seq
 
     # Create instance
-    create_instance $_seq "" "$KOVRI_BIN_ARGS"
+    create_instance $_seq "$_extra_opts" "$KOVRI_BIN_ARGS"
 
     # Create publisher webserver instance for first kovri instance only
     # TODO(unassigned): we create the instance with the first instance in mind
@@ -490,6 +493,9 @@ create_data_dir()
   # Set publisher to testnet publisher
   echo "http://${_web_host}/hosts.txt" > "${_host_data_dir}/client/address_book/publishers.txt"
 
+  # Trim leading zero from sequence number
+  local _port_lead="$((10#$1))"
+
   ## Default with 1 server tunnel
   # TODO(unassigned): client tunnel for in-net publisher
   echo "\
@@ -497,7 +503,7 @@ create_data_dir()
 type = server
 address = 127.0.0.1
 port = 2222
-in_port = 2222
+in_port = ${_port_lead}22
 keys = server-keys.dat
 ;white_list =
 ;black_list =
