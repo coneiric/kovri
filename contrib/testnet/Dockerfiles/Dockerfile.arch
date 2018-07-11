@@ -35,9 +35,10 @@ ENV userid=$userid
 RUN pacman -Syu --noconfirm && pacman -S --noconfirm \
       binutils boost cmake gcc clang gdb make \
       gnu-netcat iftop iproute2 openssh tcpdump \
-      htop iotop \
+      htop iotop sudo \
       && \
       useradd -m kovri -u $userid -s /usr/bin/bash && \
+      ssh-keygen -t ed25519 -f /home/kovri/ssh-key -N "" -C "" && \
       chown -R kovri:kovri /home/kovri
 
 USER kovri
