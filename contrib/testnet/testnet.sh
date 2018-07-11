@@ -165,7 +165,7 @@ PrintUsage()
   echo "  - Instance Overview: overall statistics of the Kovri tesnet environment"
   echo "  - Each Dashboard can be filtered to show a subset of Kovri instances"
   echo ""
-  echo "Usage: $ $0 {create|start|stop|destroy|exec|help}" >&2
+  echo "Usage: $ $0 {create|start|stop|destroy|exec|client|help}" >&2
 }
 
 if [[ $# -lt 1 ]]
@@ -511,6 +511,40 @@ keys = server-keys.dat
   catch "Could not create server tunnel"
 }
 
+# Create client tunnel
+# $1 - sequence id
+create_client_tunnel()
+{
+  # Trim leading zero from sequence number
+  local _client_port_lead="$((10#$1))"
+  local _server_base_nb="0$((10#$1 - 1))"
+  local _server_base=""
+
+  # Set server number for destination
+  if [[ $_client_port_lead = $seq_start ]]; then
+    _server_base="0$seq_base_end"
+  else
+    _server_base="$_server_base_nb"
+  fi
+
+  local _server_data_dir="$KOVRI_WORKSPACE/${kovri_base_name}${_server_base}"
+  local _client_data_dir="$KOVRI_WORKSPACE/${kovri_base_name}${1}"
+  local _server_port_lead="$((10#$_server_base))"
+  local _server_dest="$(head -n 1 ${_server_data_dir}/client/keys/server-keys.dat.txt)"
+
+  # Append client tunnel to config
+  echo "\
+[MyClient]
+type = client
+address = 0.0.0.0
+port = ${_client_port_lead}11
+dest = ${_server_dest}
+dest_port = ${_server_port_lead}22
+;keys = client-keys.dat
+" >> ${_client_data_dir}/config/tunnels.conf
+  catch "Could not create client tunnel"
+}
+
 # Create router info
 # $1 - sequence ID
 create_ri()
@@ -818,6 +852,17 @@ Exec()
   catch "Docker: run failed"
 }
 
+Client()
+{
+  set_workspace
+
+  for _seq in $($base_sequence); do
+    create_client_tunnel $_seq
+  done
+
+  catch "Could not create client tunnels"
+}
+
 # Error handler
 catch()
 {
@@ -886,6 +931,9 @@ case "$1" in
     ;;
   exec)
     set_repo && set_images && Exec "${_args[@]:1}"
+    ;;
+  client)
+    Client && echo "Kovri client tunnels created"
     ;;
   help | *)
     PrintUsage
