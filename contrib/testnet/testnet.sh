@@ -602,7 +602,6 @@ create_webserver_instance()
   # Start publisher instance
   docker create -it --network=${KOVRI_NETWORK} --ip=${_web_host} --name $web_name \
     $_entrypoint \
-    -u $docker_uid \
     -v ${_dest_dir}/${web_root_dir}/:${web_system_dir}/${web_root_dir}/ \
     $KOVRI_WEB_IMAGE \
     "$_cmd"
