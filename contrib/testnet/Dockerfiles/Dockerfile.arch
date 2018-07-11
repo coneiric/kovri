@@ -38,6 +38,7 @@ RUN pacman -Syu --noconfirm && pacman -S --noconfirm \
       htop iotop \
       && \
       useradd -m kovri -u $userid -s /usr/bin/bash && \
+      ssh-keygen -t ed25519 -f /home/kovri/ssh-key -N "" -C "" && \
       chown -R kovri:kovri /home/kovri
 
 USER kovri

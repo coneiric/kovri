@@ -49,8 +49,10 @@ RUN apk add --update --no-cache \
       bash \
       coreutils \
       curl \
+      openssh \
       && \ 
       adduser -D kovri -u $userid && \
+      ssh-keygen -t ed25519 -f /home/kovri/ssh-key -N "" -C "" && \
       chown -R kovri:kovri /home/kovri
 
 USER kovri
