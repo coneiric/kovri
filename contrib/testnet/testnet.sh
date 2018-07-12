@@ -364,6 +364,9 @@ Create()
   # Create workspace
   pushd $KOVRI_WORKSPACE
 
+  # Create login SSH key
+  create_ssh_key
+
   # Create unfirewalled testnet
   for _seq in $($base_sequence); do
     local _extra_opts="-v ${KOVRI_REPO}/${docker_dir}/entrypoints/${ssh_entrypoint}:/${ssh_entrypoint} \
@@ -545,6 +548,25 @@ dest_port = ${_server_port_lead}22
   catch "Could not create client tunnel"
 }
 
+create_ssh_key()
+{
+  local _ssh_dir="${KOVRI_WORKSPACE}/.ssh"
+
+  if [[ ! -d $_ssh_dir ]]; then
+    mkdir $_ssh_dir
+  fi
+
+  local _client_key="${KOVRI_WORKSPACE}/client-key"
+
+  ssh-keygen -t ed25519 -f $_client_key -N "" -C ""
+  catch "Could not create client SSH keys"
+
+  if [[ -f $_client_key ]]; then
+    cat ${_client_key}.pub >> ${_ssh_dir}/authorized_keys
+    catch "Could not add client key to authorized keys"
+  fi
+}
+
 # Create router info
 # $1 - sequence ID
 create_ri()
@@ -593,13 +615,19 @@ create_instance()
   # Set container options
   local _container_name="${docker_base_name}${_seq}"
 
+  local _host_data_dir="${KOVRI_WORKSPACE}/${kovri_base_name}${_seq}"
+  local _host_router_dir="${KOVRI_WORKSPACE}/${router_base_name}${_seq}"
   local _data_dir="${mount_testnet}/${kovri_base_name}${_seq}"
+  local _router_dir="${mount_testnet}/${router_base_name}${_seq}"
   local _container_pipe="${_data_dir}/${pipe_base_name}"
 
   local _host="${network_octets}.$((10#${_seq}))"
   local _port="${seq_start}${_seq}"
 
-  local _volume="${KOVRI_WORKSPACE}:${mount_testnet}"
+  local _data_volume="${_host_data_dir}:${_data_dir}"
+  local _router_volume="${_host_router_dir}:${_router_dir}"
+  local _reseed_volume="${KOVRI_WORKSPACE}/reseed.zip:${mount_testnet}/reseed.zip"
+  local _ssh_volume="${KOVRI_WORKSPACE}/.ssh:${mount}/.ssh"
 
   local _bin_args="
     --data-dir $_data_dir
@@ -615,7 +643,10 @@ create_instance()
     --net $KOVRI_NETWORK \
     --ip $_host \
     -p ${_port}:${_port} \
-    -v $_volume \
+    -v $_data_volume \
+    -v $_router_volume \
+    -v $_reseed_volume \
+    -v $_ssh_volume \
     -u $docker_uid \
     $mount_repo_bins \
     $_docker_opts \
