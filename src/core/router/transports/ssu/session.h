@@ -76,17 +76,19 @@ class SSUPacket;
 /// @brief A session packet "sliding-window" of the given buffer
 struct SSUSessionPacket  // TODO(unassigned): finish
 {
-  SSUSessionPacket() : data(nullptr) /*, body(nullptr), data_len(0)*/ {}
+  SSUSessionPacket() : data(nullptr) , body(nullptr), data_len(0) {}
 
   SSUSessionPacket(std::uint8_t* buf, const std::size_t len)
-      : data(buf) /*, body(nullptr), data_len(len)*/
+      : data(buf) , body(nullptr), data_len(len)
   {
-    assert(len > SSUSize::HeaderMin);  // TODO(unassigned): upper limit
-    if (len < SSUSize::HeaderMin)
+    assert(len > SSUSize::HeaderMin && len < SSUSize::MTUv6);
+    if (len < SSUSize::HeaderMin || len > SSUSize::MTUv6)
       {
         throw std::length_error(
             __func__ + std::string(": invalid length: " + std::to_string(len)));
       }
+
+    body = &data[32];
   }
 
   /// @brief Sets flag byte
@@ -122,8 +124,8 @@ struct SSUSessionPacket  // TODO(unassigned): finish
   }
 
   std::uint8_t* data;  ///< Pointer to beginning of packet header
-  //std::uint8_t* body;  ///< Pointer to begining of packet body
-  //std::size_t data_len;  ///< How big is the total packet including header
+  std::uint8_t* body;  ///< Pointer to begining of packet body
+  std::size_t data_len;  ///< How big is the total packet including header
 };
 
 class SSUServer;
