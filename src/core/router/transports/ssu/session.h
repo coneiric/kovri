@@ -114,7 +114,7 @@ struct SSUSessionPacket  // TODO(unassigned): finish
   /// @brief Gets pointer to begining of encrypted section
   std::uint8_t* get_encrypted() noexcept
   {
-    return data + std::size_t(32);
+    return body;
   }
 
   /// @brief Gets pointer to IV
