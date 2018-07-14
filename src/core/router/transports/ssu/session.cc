@@ -200,8 +200,9 @@ void SSUSession::ProcessNextMessage(
       const std::uint8_t* key = is_session ? m_MACKey() : GetIntroKey();
       assert(key);
 
+      SSUSessionPacket packet(buf, len);
       // HMAC-MD5 validation
-      if (!Validate(buf, len, key))
+      if (!packet.Validate(key))
         {
           LOG(trace) << GetFormattedSessionInfo() << __func__
                      << ": Key=" << GetFormattedHex(key, 32);
@@ -1474,26 +1475,6 @@ void SSUSession::Decrypt(
   m_SessionKeyDecryption.Decrypt(encrypted, encrypted_len, encrypted);
 }
 
-bool SSUSession::Validate(
-    std::uint8_t* buf,
-    std::size_t len,
-    const std::uint8_t* mac_key) {
-  SSUSessionPacket pkt(buf, len);
-  auto encrypted = pkt.get_encrypted();
-  auto encrypted_len = len - (encrypted - buf);
-  // assume actual buffer size is 18 (16 + 2) bytes more (SSUSize::RawPacketBuffer)
-  memcpy(buf + len, pkt.get_iv(), SSUSize::IV);
-  core::OutputByteStream::Write<std::uint16_t>(
-      buf + len + SSUSize::IV, encrypted_len);
-  std::array<std::uint8_t, 16> digest;
-  kovri::core::HMACMD5Digest(
-      encrypted,
-      encrypted_len + SSUSize::BufferMargin,
-      mac_key,
-      digest.data());
-  return core::ConstTimeCmp(pkt.get_mac(), digest.data(), digest.size());
-}
-
 void SSUSessionPacket::CalculateMAC(const std::uint8_t* mac_key, std::uint8_t* mac)
 {
   auto encrypted_len = data_len - (SSUSize::MAC + SSUSize::IV);
@@ -1508,6 +1489,13 @@ void SSUSessionPacket::CalculateMAC(const std::uint8_t* mac_key, std::uint8_t* m
       buf.size(),
       mac_key,
       mac);
+}
+
+bool SSUSessionPacket::Validate(const std::uint8_t* mac_key)
+{
+  std::array<std::uint8_t, 16> digest;
+  CalculateMAC(mac_key, digest.data());
+  return !memcmp(get_mac(), digest.data(), digest.size());
 }
 
 void SSUSession::Connect() {

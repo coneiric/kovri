@@ -128,6 +128,10 @@ struct SSUSessionPacket  // TODO(unassigned): finish
   /// @param mac Buffer for storing the session packet MAC
   void CalculateMAC(const std::uint8_t* mac_key, std::uint8_t* mac);
 
+  /// @brief Validates the checksum of an encrypted packet
+  /// @param mac_key Key used to calculate encrypted packet MAC
+  bool Validate(const std::uint8_t* mac_key);
+
   std::uint8_t* data;  ///< Pointer to beginning of packet header
   std::uint8_t* body;  ///< Pointer to begining of packet body
   std::size_t data_len;  ///< How big is the total packet including header
@@ -387,11 +391,6 @@ class SSUSession
       std::size_t len,
       const std::uint8_t* aes_key,
       const bool is_session = false);
-
-  bool Validate(
-      std::uint8_t* buf,
-      std::size_t len,
-      const std::uint8_t* mac_key);
 
   const std::uint8_t* GetIntroKey() const;
 
