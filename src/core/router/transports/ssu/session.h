@@ -123,6 +123,11 @@ struct SSUSessionPacket  // TODO(unassigned): finish
     return data + std::size_t(16);
   }
 
+  /// @brief Calculates and sets session packet MAC
+  /// @param mac_key Key used to calculate session packet MAC
+  /// @param mac Buffer for storing the session packet MAC
+  void CalculateMAC(const std::uint8_t* mac_key, std::uint8_t* mac);
+
   std::uint8_t* data;  ///< Pointer to beginning of packet header
   std::uint8_t* body;  ///< Pointer to begining of packet body
   std::size_t data_len;  ///< How big is the total packet including header

@@ -1358,16 +1358,7 @@ void SSUSession::FillHeaderAndEncrypt(
         encrypted,
         encrypted_len,
         encrypted);
-    // assume actual buffer size is 18 (16 + 2) bytes more
-    // TODO(unassigned): ^ this is stupid and dangerous to assume that caller is responsible
-    memcpy(buf + len, pkt.get_iv(), SSUSize::IV);
-    core::OutputByteStream::Write<std::uint16_t>(
-        buf + len + SSUSize::IV, encrypted_len);
-    kovri::core::HMACMD5Digest(
-        encrypted,
-        encrypted_len + SSUSize::BufferMargin,
-        mac_key,
-        pkt.get_mac());
+    pkt.CalculateMAC(mac_key, pkt.get_mac());
   } catch (...) {
     m_Exception.Dispatch(__func__);
     // TODO(anonimal): review if we need to safely break control, ensure exception handling by callers
@@ -1446,16 +1437,7 @@ void SSUSession::FillHeaderAndEncrypt(
         encrypted,
         encrypted_len,
         encrypted);
-    // assume actual buffer size is 18 (16 + 2) bytes more
-    // TODO(unassigned): ^ this is stupid and dangerous to assume that caller is responsible
-    memcpy(buf + len, pkt.get_iv(), SSUSize::IV);
-    core::OutputByteStream::Write<std::uint16_t>(
-        buf + len + SSUSize::IV, encrypted_len);
-    kovri::core::HMACMD5Digest(
-        encrypted,
-        encrypted_len + SSUSize::BufferMargin,
-        m_MACKey,
-        pkt.get_mac());
+    pkt.CalculateMAC(m_MACKey, pkt.get_mac());
   } catch (...) {
     m_Exception.Dispatch(__func__);
     // TODO(anonimal): review if we need to safely break control, ensure exception handling by callers
@@ -1510,6 +1492,22 @@ bool SSUSession::Validate(
       mac_key,
       digest.data());
   return core::ConstTimeCmp(pkt.get_mac(), digest.data(), digest.size());
+}
+
+void SSUSessionPacket::CalculateMAC(const std::uint8_t* mac_key, std::uint8_t* mac)
+{
+  auto encrypted_len = data_len - (SSUSize::MAC + SSUSize::IV);
+  std::vector<std::uint8_t> buf(encrypted_len + SSUSize::BufferMargin);
+  memcpy(buf.data(), get_encrypted(), encrypted_len);
+  memcpy(buf.data() + encrypted_len, get_iv(), SSUSize::IV);
+  core::OutputByteStream::Write<std::uint16_t>(
+      buf.data() + encrypted_len + SSUSize::IV, encrypted_len);
+
+  kovri::core::HMACMD5Digest(
+      buf.data(),
+      buf.size(),
+      mac_key,
+      mac);
 }
 
 void SSUSession::Connect() {
