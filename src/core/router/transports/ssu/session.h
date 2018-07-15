@@ -132,6 +132,10 @@ struct SSUSessionPacket  // TODO(unassigned): finish
   /// @param mac_key Key used to calculate encrypted packet MAC
   bool Validate(const std::uint8_t* mac_key);
 
+  /// @brief Decrypt message
+  /// @param key Decrypt with given key
+  void Decrypt(const std::uint8_t* key);
+
   std::uint8_t* data;  ///< Pointer to beginning of packet header
   std::uint8_t* body;  ///< Pointer to begining of packet body
   std::size_t data_len;  ///< How big is the total packet including header
@@ -380,17 +384,6 @@ class SSUSession
       std::uint8_t payload_type,
       std::uint8_t* buf,
       std::size_t len);
-
-  /// @brief Decrypt message
-  /// @param buf Message to decrypt + decrypt to existing buffer
-  /// @param len Message length
-  /// @param key Decrypt with given key (implies not using session's AES key)
-  /// @param is_session Decrypt using session's AES key (implies not using given AES key)
-  void Decrypt(
-      std::uint8_t* buf,
-      std::size_t len,
-      const std::uint8_t* aes_key,
-      const bool is_session = false);
 
   const std::uint8_t* GetIntroKey() const;
 

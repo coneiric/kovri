@@ -137,7 +137,6 @@ bool SSUSession::CreateAESandMACKey(
  *
  */
 
-// TODO(anonimal): separate message validation / decryption from session
 void SSUSession::ProcessNextMessage(
     std::uint8_t* buf,
     std::size_t len,
@@ -214,7 +213,10 @@ void SSUSession::ProcessNextMessage(
         }
 
       // Decrypt message using given key or existing session keys
-      Decrypt(buf, len, key, is_session);
+      if (is_session)
+        key = m_SessionKey;
+
+      packet.Decrypt(key);
       ProcessDecryptedMessage(buf, len, sender_endpoint);
     }
   catch (...)
@@ -1446,33 +1448,22 @@ void SSUSession::FillHeaderAndEncrypt(
   }
 }
 
-void SSUSession::Decrypt(
-    std::uint8_t* buf,
-    std::size_t len,
-    const std::uint8_t* aes_key,
-    const bool is_session)
+void SSUSessionPacket::Decrypt(const std::uint8_t* key)
 {
-  // Parse message buffer and decrypt
-  SSUSessionPacket message(buf, len);
+  assert(key);
+  if (!key)
+    throw std::invalid_argument(
+        __func__ + std::string(": null decryption key"));
 
-  std::uint8_t* encrypted = message.get_encrypted();
   // TOOD(anonimal): we should only need 2 bytes
-  std::size_t encrypted_len = len - (encrypted - buf);
+  std::size_t encrypted_len = data_len - (SSUSize::MAC + SSUSize::IV);
+
   assert(encrypted_len);
+  if (!encrypted_len || encrypted_len % 16)
+    throw std::length_error(__func__ + std::string(": invalid payload length"));
 
-  // Set new key for this message
-  if (!is_session)
-    {
-      core::CBCDecryption decryption;
-      decryption.SetKey(aes_key);
-      decryption.SetIV(message.get_iv());
-      decryption.Decrypt(encrypted, encrypted_len, encrypted);
-      return;
-    }
-
-  // Use existing session's AES and MAC key
-  m_SessionKeyDecryption.SetIV(message.get_iv());
-  m_SessionKeyDecryption.Decrypt(encrypted, encrypted_len, encrypted);
+  core::CBCDecryption decryption(key, get_iv());
+  decryption.Decrypt(get_encrypted(), encrypted_len, get_encrypted());
 }
 
 void SSUSessionPacket::CalculateMAC(const std::uint8_t* mac_key, std::uint8_t* mac)
