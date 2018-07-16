@@ -1354,13 +1354,7 @@ void SSUSession::FillHeaderAndEncrypt(
     core::RandBytes(pkt.get_iv(), SSUSize::IV);
     pkt.put_flag(flag | (payload_type << 4));  // MSB is 0
     pkt.put_time(kovri::core::GetSecondsSinceEpoch());
-    auto encrypted = pkt.get_encrypted();
-    auto encrypted_len = len - (encrypted - buf);
-    kovri::core::CBCEncryption encryption(aes_key, pkt.get_iv());
-    encryption.Encrypt(
-        encrypted,
-        encrypted_len,
-        encrypted);
+    pkt.Encrypt(aes_key);
     pkt.CalculateMAC(mac_key, pkt.get_mac());
   } catch (...) {
     m_Exception.Dispatch(__func__);
@@ -1431,21 +1425,33 @@ void SSUSession::FillHeaderAndEncrypt(
   try {
     SSUSessionPacket pkt(buf, len);
     kovri::core::RandBytes(pkt.get_iv(), SSUSize::IV);  // random iv
-    m_SessionKeyEncryption.SetIV(pkt.get_iv());
     pkt.put_flag(payload_type << 4);  // MSB is 0
     pkt.put_time(kovri::core::GetSecondsSinceEpoch());
-    auto encrypted = pkt.get_encrypted();
-    auto encrypted_len = len - (encrypted - buf);
-    m_SessionKeyEncryption.Encrypt(
-        encrypted,
-        encrypted_len,
-        encrypted);
+    pkt.Encrypt(m_SessionKey);
     pkt.CalculateMAC(m_MACKey, pkt.get_mac());
   } catch (...) {
     m_Exception.Dispatch(__func__);
     // TODO(anonimal): review if we need to safely break control, ensure exception handling by callers
     throw;
   }
+}
+
+void SSUSessionPacket::Encrypt(const std::uint8_t* key)
+{
+  assert(key);
+  if (!key)
+    throw std::invalid_argument(
+        __func__ + std::string(": null encryption key"));
+
+  // TOOD(anonimal): we should only need 2 bytes
+  std::size_t encrypted_len = data_len - (SSUSize::MAC + SSUSize::IV);
+
+  assert(encrypted_len);
+  if (!encrypted_len || encrypted_len % 16)
+    throw std::length_error(__func__ + std::string(": invalid payload length"));
+
+  core::CBCEncryption encryption(key, get_iv());
+  encryption.Encrypt(get_encrypted(), encrypted_len, get_encrypted());
 }
 
 void SSUSessionPacket::Decrypt(const std::uint8_t* key)

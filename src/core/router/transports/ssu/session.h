@@ -132,6 +132,10 @@ struct SSUSessionPacket  // TODO(unassigned): finish
   /// @param mac_key Key used to calculate encrypted packet MAC
   bool Validate(const std::uint8_t* mac_key);
 
+  /// @brief Encrypt message
+  /// @param key Encrypt with given key
+  void Encrypt(const std::uint8_t* key);
+
   /// @brief Decrypt message
   /// @param key Decrypt with given key
   void Decrypt(const std::uint8_t* key);
