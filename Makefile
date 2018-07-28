@@ -68,6 +68,7 @@ cmake = cmake $(cmake-gen) $(cmake_cotire)
 # Release types
 cmake-debug = $(cmake) -D CMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 cmake-release = $(cmake) -D CMAKE_BUILD_TYPE=Release
+cmake-release-debug = $(cmake) -D CMAKE_BUILD_TYPE=RelWithDebInfo
 
 # Current off-by-default Kovri build options
 cmake-optimize   = -D WITH_OPTIMIZE=ON
@@ -158,6 +159,11 @@ debug: deps
 release: release-deps
         # TODO(unassigned): optimizations/hardening when we're out of alpha
 	$(eval cmake-kovri += $(cmake-release) $(cmake-kovri-util))
+	$(call CMAKE,$(build),$(cmake-kovri)) && $(MAKE) -C $(build) $(cmake_target)
+
+release-debug: release-deps
+        # TODO(unassigned): optimizations/hardening when we're out of alpha
+	$(eval cmake-kovri += $(cmake-release-debug) $(cmake-kovri-util))
 	$(call CMAKE,$(build),$(cmake-kovri)) && $(MAKE) -C $(build) $(cmake_target)
 
 #--------------------------------------------------------------#
@@ -254,4 +260,4 @@ uninstall:
 	@_install="./pkg/installers/kovri-install.sh"; \
 	if [ -e $$_install ]; then $$_install -u; else echo "Unable to find $$_install"; exit 1; fi
 
-.PHONY: all deps release-deps release-static-deps dynamic static debug release release-static release-static-android all-options optimized-hardened optimized-hardened-tests coverage coverage-tests tests doxygen help clean install uninstall
+.PHONY: all deps release-deps release-static-deps dynamic static debug release release-debug release-static release-static-android all-options optimized-hardened optimized-hardened-tests coverage coverage-tests tests doxygen help clean install uninstall
