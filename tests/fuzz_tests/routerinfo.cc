@@ -1,5 +1,5 @@
 /**                                                                                           //
- * Copyright (c) 2015-2017, The Kovri I2P Router Project                                      //
+ * Copyright (c) 2015-2018, The Kovri I2P Router Project                                      //
  *                                                                                            //
  * All rights reserved.                                                                       //
  *                                                                                            //
@@ -26,7 +26,6 @@
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,          //
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF    //
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.               //
- *                                                                                            //
  */
 
 #include "tests/fuzz_tests/routerinfo.h"
@@ -44,10 +43,12 @@ int RouterInfo::Initialize(int*, char***)
 
 int RouterInfo::Impl(const uint8_t* data, size_t size)
 {
+  if (!data || size < kovri::core::DEFAULT_IDENTITY_SIZE)
+    return 0;
+
   try
     {
       kovri::core::RouterInfo ri(data, size);
-      ri.GetDescription();
     }
   catch (...)
     {

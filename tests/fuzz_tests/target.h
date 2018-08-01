@@ -1,5 +1,5 @@
 /**                                                                                           //
- * Copyright (c) 2015-2017, The Kovri I2P Router Project                                      //
+ * Copyright (c) 2015-2018, The Kovri I2P Router Project                                      //
  *                                                                                            //
  * All rights reserved.                                                                       //
  *                                                                                            //
@@ -43,7 +43,6 @@ namespace fuzz
  * @brief Base class for all fuzz targets
  * @details All fuzz targets must inherit this class
  */
-
 class FuzzTarget
 {
  public:
@@ -58,6 +57,9 @@ class FuzzTarget
   /// @param size Size of the input buffer
   /// @return 0 on success, 1 otherwise
   virtual int Impl(const uint8_t* data, size_t size) = 0;
+
+  /// @brief Virtual destructor for safe deletion
+  virtual ~FuzzTarget() = default;
 };
 
 }  // namespace fuzz

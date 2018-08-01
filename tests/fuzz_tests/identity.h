@@ -28,8 +28,8 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.               //
  */
 
-#ifndef TESTS_FUZZ_TESTS_ROUTERINFO_H_
-#define TESTS_FUZZ_TESTS_ROUTERINFO_H_
+#ifndef TESTS_FUZZ_TESTS_IDENTITY_H_
+#define TESTS_FUZZ_TESTS_IDENTITY_H_
 
 #include "tests/fuzz_tests/target.h"
 
@@ -41,7 +41,7 @@ namespace fuzz
  * @class RouterInfo
  * @brief Specialization of FuzzTarget for routerinfo
  */
-class RouterInfo : public FuzzTarget
+class IdentityEx : public FuzzTarget
 {
  public:
   int Initialize(int* argc, char*** argv);
@@ -51,4 +51,4 @@ class RouterInfo : public FuzzTarget
 }  // namespace fuzz
 }  // namespace kovri
 
-#endif  // TESTS_FUZZ_TESTS_ROUTERINFO_H_
+#endif  // TESTS_FUZZ_TESTS_IDENTITYEX_H_

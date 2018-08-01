@@ -94,7 +94,6 @@ build = build/
 build-cpp-netlib = deps/cpp-netlib/$(build)
 build-cryptopp = deps/cryptopp/  # No longer using CMake
 build-doxygen = doc/Doxygen
-build-fuzzer = contrib/Fuzzer/$(build)
 
 # CMake builder macros
 define CMAKE
@@ -254,13 +253,6 @@ define MAKE_CRYPTOPP
   && $1
 endef
 
-define CMAKE_FUZZER
-  @echo "=== Building fuzzer ==="
-  $(eval cmake-fuzzer = $(cmake-release) -DLLVM_USE_SANITIZER=Address -DLLVM_USE_SANITIZE_COVERAGE=YES \
-      -DCMAKE_CXX_FLAGS="-g -O2 -fno-omit-frame-pointer -std=c++11" $1)
-  $(call CMAKE,$(build-fuzzer),$(cmake-fuzzer))
-endef
-
 # Targets
 all: dynamic
 
@@ -361,7 +353,6 @@ tests: deps
 
 # Produce vanilla fuzzer-tests
 fuzz-tests: deps
-	$(call CMAKE_FUZZER) && $(MAKE)
 	$(eval cmake-kovri += $(cmake-debug) $(cmake-fuzz-tests))
 	$(call CMAKE,$(build),$(cmake-kovri)) && $(MAKE) -C $(build) $(cmake_target)
 

@@ -1,0 +1,3 @@
+# Partial SU3 header to guide deeper coverage
+# - magic value (I2Psu3) - unused - unusued - sig type (RSA_4096_SHA_512) - sig length - unused - version length
+"I2Psu3\x00\x00\x00\x06\x02\x00\x00\x10"

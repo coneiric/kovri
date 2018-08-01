@@ -1,5 +1,5 @@
 /**                                                                                           //
- * Copyright (c) 2015-2017, The Kovri I2P Router Project                                      //
+ * Copyright (c) 2015-2018, The Kovri I2P Router Project                                      //
  *                                                                                            //
  * All rights reserved.                                                                       //
  *                                                                                            //
@@ -41,12 +41,11 @@ namespace fuzz
  * @class I2PControl
  * @brief Specialization of FuzzTarget for I2PControl
  */
-
 class I2PControl : public FuzzTarget
 {
  public:
-  virtual int Initialize(int* argc, char*** argv);
-  virtual int Impl(const uint8_t* data, size_t size);
+  int Initialize(int* argc, char*** argv);
+  int Impl(const uint8_t* data, size_t size);
 };
 
 }  // namespace fuzz
