@@ -13,7 +13,6 @@ add_executable(kovri-util
   benchmark.h
   command.h
   cpuid.h
-  fuzz.h
   i2pcontrol.h
   i2pcontrol_client.h
   kovri.h
@@ -27,15 +26,6 @@ endif()
 
 if(WITH_CRYPTOPP)
   target_sources(kovri-util PRIVATE cpuid.cc)
-endif()
-
-if(WITH_FUZZ_TESTS)
-  target_sources(kovri-util PRIVATE 
-    ../../tests/fuzz_tests/i2pcontrol.cc
-    ../../tests/fuzz_tests/lease_set.cc
-    ../../tests/fuzz_tests/routerinfo.cc
-    ../../tests/fuzz_tests/su3.cc
-    fuzz.cc)
 endif()
 
 ConfigureBinary(kovri-util "kovri-util")
