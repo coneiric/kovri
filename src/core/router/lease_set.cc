@@ -130,8 +130,11 @@ void LeaseSet::ReadFromBuffer() {
   std::uint8_t num = m_Buffer[size];
   size++;  // num
   LOG(debug) << "LeaseSet: num=" << static_cast<int>(num);
-  if (!num)
-    m_IsValid = false;
+  if (!num || num > LeaseSize::MaxLeases)
+    {
+      m_IsValid = false;
+      return;
+    }
   // process leases
   const std::uint8_t* leases = m_Buffer.get() + size;
   for (int i = 0; i < num; i++) {

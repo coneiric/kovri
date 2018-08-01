@@ -60,6 +60,11 @@ struct Lease {
 
 const int MAX_LS_BUFFER_SIZE = 3072;
 
+enum LeaseSize : std::uint16_t
+{
+  MaxLeases = 16,
+};
+
 class LeaseSet : public RoutingDestination {
  public:
   LeaseSet(
