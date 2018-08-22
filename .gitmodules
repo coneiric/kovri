@@ -16,3 +16,7 @@
 [submodule "cmake/cotire"]
 	path = cmake/cotire
 	url = https://github.com/sakra/cotire.git
+[submodule "deps/beast"]
+	path = deps/beast
+	url = https://github.com/coneiric/beast.git
+	branch = kovri
