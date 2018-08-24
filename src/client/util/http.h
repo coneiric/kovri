@@ -67,6 +67,12 @@ enum Timeout : std::uint8_t {
   Receive = 30,
 };
 
+/// @function DecodeURL
+/// @brief Decode a URL-encoded string
+/// @param url URL-encoded string to decode
+/// @return URL-decoded string
+std::string URLDecode(const std::string& url);
+
 /// @class HTTPStorage
 /// @brief Storage for class HTTP
 class HTTPStorage {

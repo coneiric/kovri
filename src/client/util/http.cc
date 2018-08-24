@@ -50,6 +50,24 @@ namespace client {
 
 namespace http = boost::beast::http;
 
+std::string URLDecode(const std::string& url)
+{
+    std::string ret;
+
+    for (std::size_t i = 0; i < url.length(); i++)
+      {
+        if (url[i] == '%')
+          {
+            ret +=
+                static_cast<char>(std::stoi(url.substr(i + 1, 2), nullptr, 16));
+            i += 2;
+          }
+        else
+          ret += url[i] == '+' ? ' ' : url[i];
+      }
+    return ret;
+}
+
 // TODO(unassigned): currently unused but will be useful
 // without needing to create a new object for each given URI
 bool HTTP::Download(
