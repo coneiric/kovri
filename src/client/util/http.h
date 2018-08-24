@@ -1,5 +1,5 @@
 /**                                                                                           //
- * Copyright (c) 2013-2017, The Kovri I2P Router Project                                      //
+ * Copyright (c) 2013-2018, The Kovri I2P Router Project                                      //
  *                                                                                            //
  * All rights reserved.                                                                       //
  *                                                                                            //
@@ -34,8 +34,16 @@
 #define SRC_CLIENT_UTIL_HTTP_H_
 
 // cpp-netlib
-#include <boost/network/include/http/client.hpp>
 #include <boost/network/uri.hpp>
+
+// beast
+#include <boost/beast/core.hpp>
+#include <boost/beast/http.hpp>
+#include <boost/beast/version.hpp>
+#include <boost/asio/connect.hpp>
+#include <boost/asio/ip/tcp.hpp>
+#include <boost/asio/ssl/error.hpp>
+#include <boost/asio/ssl/stream.hpp>
 
 #include <cstdint>
 #include <fstream>
@@ -53,7 +61,6 @@ namespace client {
 
 /// @enum Timeout
 /// @brief Constants used for HTTP timeout lengths when downloading
-/// @notes Scoped to prevent namespace pollution (otherwise, purely stylistic)
 enum struct Timeout : std::uint8_t {
   // Seconds
   Request = 45,  // Java I2P defined
@@ -209,29 +216,9 @@ class HTTP : public HTTPStorage {
   /// @notes Used for address book and for future in-net autoupdates
   bool DownloadViaI2P();
 
- private:
   /// @var m_URI
   /// @brief cpp-netlib URI instance
   boost::network::uri::uri m_URI;
-
-  // TODO(anonimal): consider removing typedefs after refactor
-  // TODO(anonimal): remove the following notes after refactor
-
-  /// @brief HTTP client object
-  /// @notes Currently only applies to clearnet download
-  typedef boost::network::http::client Client;
-
-  /// @brief HTTP client options object (timeout, SNI, etc.)
-  /// @notes Currently only applies to clearnet download
-  typedef boost::network::http::client::options Options;
-
-  /// @brief HTTP client request object (header, etc.)
-  /// @notes Currently only applies to clearnet download
-  typedef boost::network::http::client::request Request;
-
-  /// @brief HTTP client response object (body, status, etc.)
-  /// @notes Currently only applies to clearnet download
-  typedef boost::network::http::client::response Response;
 
  public:
   // TODO(anonimal): remove after refactor
