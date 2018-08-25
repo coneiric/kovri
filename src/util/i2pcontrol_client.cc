@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2015-2017, The Kovri I2P Router Project
+ * Copyright (c) 2015-2018, The Kovri I2P Router Project
  *
  * All rights reserved.
  *
@@ -30,8 +30,6 @@
 
 #include "util/i2pcontrol_client.h"
 
-#include <boost/network/uri.hpp>
-
 #include <iomanip>
 #include <iostream>
 #include <sstream>
@@ -41,18 +39,18 @@
 
 namespace asio = boost::asio;
 namespace core = kovri::core;
-namespace http = boost::network::http;
+namespace http = boost::beast::http;
+using boost::asio::ip::tcp;
 
 namespace kovri
 {
 namespace client
 {
-I2PControlClient::I2PControlClient(std::shared_ptr<asio::io_service> service)
-    : m_Service(service)
+I2PControlClient::I2PControlClient(boost::asio::io_service& service)
+    : m_HTTPRequest({http::verb::post, "/", 11}),
+      m_Resolver(service),
+      m_Socket(service)
 {
-  http::client::options options;
-  options.io_service(m_Service);
-  m_Client = std::make_unique<http::client>(options);
 }
 
 void I2PControlClient::SetHost(const std::string& host)
@@ -78,30 +76,32 @@ void I2PControlClient::AsyncConnect(
   request->SetMethod(Method::Authenticate);
   request->SetParam(Request::MethodAuthenticate::API, std::size_t(1));
   request->SetParam(Request::MethodAuthenticate::Password, m_Password);
+  m_Request.swap(request);
 
-  ProcessAsyncSendRequest(
-      request, [this, callback](std::unique_ptr<Response> response) {
-        if (response->GetError() == Response::ErrorCode::None)  // Store token
-          {
-            LOG(debug) << "I2PControlClient: Authentication successful";
-            m_Token = response->GetParam<std::string>(
-                Request::MethodAuthenticate::Token);
-          }
-        else
-          {
-            LOG(debug) << "I2PControlClient: Authentication failed!";
-          }
-        callback(std::move(response));
-      });
+  ProcessAsyncSendRequest([this, callback](std::unique_ptr<Response> response) {
+    if (response->GetError() == Response::ErrorCode::None)  // Store token
+      {
+        LOG(debug) << "I2PControlClient: Authentication successful";
+        m_Token =
+            response->GetParam<std::string>(Request::MethodAuthenticate::Token);
+      }
+    else
+      {
+        LOG(debug) << "I2PControlClient: Authentication failed!";
+      }
+    callback(std::move(response));
+  });
 }
 
 void I2PControlClient::AsyncSendRequest(
-    std::shared_ptr<Request> request,
+    std::shared_ptr<I2PControlRequest> request,
     std::function<void(std::unique_ptr<Response>)> callback)
 {
+  m_Request.swap(request);
+
   // First try
   ProcessAsyncSendRequest(
-      request, [this, request, callback](std::unique_ptr<Response> response) {
+      [this, callback](std::unique_ptr<Response> response) {
         // Received response
         switch (response->GetError())
           {
@@ -109,9 +109,9 @@ void I2PControlClient::AsyncSendRequest(
             case ErrorCode::ExpiredToken:
               // Auto re-authenticate
               AsyncConnect(
-                  [this, request, callback](std::unique_ptr<Response>) {
+                  [this, callback](std::unique_ptr<Response>) {
                     // Try one last time
-                    ProcessAsyncSendRequest(request, callback);
+                    ProcessAsyncSendRequest(callback);
                   });
               break;
             default:
@@ -122,50 +122,102 @@ void I2PControlClient::AsyncSendRequest(
 }
 
 void I2PControlClient::ProcessAsyncSendRequest(
-    std::shared_ptr<Request> request,
     std::function<void(std::unique_ptr<Response>)> callback)
 {
-  namespace uri = boost::network::uri;
-  uri::uri url;
-  url << uri::scheme("http") << uri::host(m_Host) << uri::port(m_Port);
-  http::client::request http_request(url);
+  m_Callback = callback;
 
-  if (request->GetMethod() != Method::Authenticate)
-    request->SetToken(m_Token);
+  m_Resolver.async_resolve(
+      m_Host,
+      boost::lexical_cast<std::string>(m_Port),
+      std::bind(
+          &I2PControlClient::HandleAsyncResolve,
+          shared_from_this(),
+          std::placeholders::_1,
+          std::placeholders::_2));
+}
 
-  auto stream = std::make_shared<std::stringstream>();
-  m_Client->post(
-      http_request,
-      request->ToJsonString(),
-      "application/json",
+void I2PControlClient::HandleAsyncResolve(
+    const boost::system::error_code& ec,
+    const tcp::resolver::results_type& results)
+{
+  if (ec)
+    throw boost::system::system_error(ec);
+
+  // Make the connection on the IP address we get from a lookup
+  boost::asio::async_connect(
+      m_Socket,
+      results.begin(),
+      results.end(),
+      std::bind(
+          &I2PControlClient::HandleAsyncConnect,
+          shared_from_this(),
+          std::placeholders::_1));
+}
+
+void I2PControlClient::HandleAsyncConnect(const boost::system::error_code& ec)
+{
+  if (ec)
+    throw boost::system::system_error(ec);
+
+  if (m_Request->GetMethod() != Method::Authenticate)
+    m_Request->SetToken(m_Token);
+
+  // Prepare the HTTP request
+  m_HTTPRequest.set(http::field::host, m_Host);
+  m_HTTPRequest.set(http::field::content_type, "application/json");
+  m_HTTPRequest.body() = m_Request->ToJsonString();
+  m_HTTPRequest.prepare_payload();
+
+  // Write the request to the socket
+  LOG(trace) << "I2PControlClient: sending " << m_HTTPRequest.body().data();
+  http::async_write(
+      m_Socket,
+      m_HTTPRequest,
+      std::bind(
+          &I2PControlClient::HandleAsyncWrite,
+          shared_from_this(),
+          std::placeholders::_1,
+          std::placeholders::_2));
+}
+
+void I2PControlClient::HandleAsyncWrite(
+    const boost::system::error_code& ec,
+    const std::size_t)
+{
+  if (ec)
+    throw boost::system::system_error(ec);
+
+  // Read the response from the socket
+  http::async_read(
+      m_Socket,
+      m_Buffer,
+      m_HTTPResponse,
       std::bind(
           &I2PControlClient::HandleHTTPResponse,
-          this,
+          shared_from_this(),
           std::placeholders::_1,
-          std::placeholders::_2,
-          request,
-          stream,
-          callback));
+          std::placeholders::_2));
 }
 
 void I2PControlClient::HandleHTTPResponse(
-    boost::network::http::client::char_const_range const& range,
     boost::system::error_code const& error,
-    std::shared_ptr<Request> request,
-    std::shared_ptr<std::stringstream> stream,
-    std::function<void(std::unique_ptr<Response>)> callback)
+    std::size_t const bytes_transferred)
 {
   if (error && error != asio::error::eof)  // Connection closed cleanly by peer.
     throw boost::system::system_error(error);  // Some other error.
 
-  *stream << std::string(boost::begin(range), boost::end(range));
-  if (error == asio::error::eof)
-    {
-      LOG(trace) << "I2PControlClient: received " << stream->str();
-      auto response = std::make_unique<Response>();
-      response->Parse(request->GetMethod(), *stream);
-      callback(std::move(response));
-    }
+  boost::ignore_unused(bytes_transferred);
+
+  std::stringstream stream;
+  stream << boost::beast::buffers(m_HTTPResponse.body().data());
+
+  // Clean up response before next request
+  m_HTTPResponse.body().consume(m_HTTPResponse.body().size());
+
+  LOG(trace) << "I2PControlClient: received " << stream.str();
+  auto response = std::make_unique<Response>();
+  response->Parse(m_Request->GetMethod(), stream);
+  m_Callback(std::move(response));
 }
 
 }  // namespace client

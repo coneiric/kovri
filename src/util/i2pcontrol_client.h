@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2015-2017, The Kovri I2P Router Project
+ * Copyright (c) 2015-2018, The Kovri I2P Router Project
  *
  * All rights reserved.
  *
@@ -31,10 +31,14 @@
 #ifndef SRC_UTIL_I2PCONTROL_CLIENT_H_
 #define SRC_UTIL_I2PCONTROL_CLIENT_H_
 
-#include <boost/network/include/http/client.hpp>
-
 #include <memory>
 #include <string>
+
+#include <boost/beast/core.hpp>
+#include <boost/beast/http.hpp>
+#include <boost/beast/version.hpp>
+#include <boost/asio/connect.hpp>
+#include <boost/asio/ip/tcp.hpp>
 
 #include "client/api/i2p_control/data.h"
 
@@ -49,11 +53,12 @@ namespace client
  * @brief Provides functiality to communicate with an I2PControl server over HTTP.
  */
 class I2PControlClient final
+    : public std::enable_shared_from_this<I2PControlClient>
 {
  public:
   // @brief I2PControlClient constructor
   // @param url the location of the HTTP document providing the JSONRPC API.
-  explicit I2PControlClient(std::shared_ptr<boost::asio::io_service>);
+  explicit I2PControlClient(boost::asio::io_service&);
 
   // @brief Starts the ::I2PControlClient.
   // @param callback the function to be called when the client is connected
@@ -64,7 +69,6 @@ class I2PControlClient final
   // @brief Sends a request to the I2PControl server.
   // @details automatically sets the token for non auth request
   // @details automatically reconnects if token expired
-  // @param request the request to be sent
   // @param callback the function to be called when the request has finished
   // @throw std::exception on error
   void AsyncSendRequest(
@@ -94,33 +98,39 @@ class I2PControlClient final
   typedef Request::Method Method;
 
   // @brief Effectively sends request without any modification
-  // @param request Original request
   // @param callback Callback to call
   // @throw std::exception on error
   void ProcessAsyncSendRequest(
-      std::shared_ptr<Request> request,
       std::function<void(std::unique_ptr<Response>)> callback);
 
+  void HandleAsyncResolve(
+      const boost::system::error_code& ec,
+      const boost::asio::ip::tcp::resolver::results_type& results);
+
+  void HandleAsyncConnect(const boost::system::error_code& ec);
+
+  void HandleAsyncWrite(const boost::system::error_code& ec, const std::size_t);
+
   // @brief Concatenate chunks as received and call callback when finished receiving
-  // @param it iterator over chunk of data received
   // @param error Error as returned by underlying lib
-  // @param request Original request
-  // @param stream concatenation of chunks received so far
-  // @param callback Callback to call when response is complete
+  // @param bytes_transferred Bytes transferred reading network response
   // @throw boost::system::error on error
   void HandleHTTPResponse(
-      boost::network::http::client::char_const_range const& it,
       boost::system::error_code const& error,
-      std::shared_ptr<Request> request,
-      std::shared_ptr<std::stringstream> stream,
-      std::function<void(std::unique_ptr<Response>)> callback);
+      std::size_t const bytes_transferred);
 
   std::string m_Host{"127.0.0.1"};
   std::uint16_t m_Port{7650};
   std::string m_Password{"itoopie"};
   std::string m_Token{};
   std::shared_ptr<boost::asio::io_service> m_Service;
-  std::unique_ptr<boost::network::http::client> m_Client;
+  std::function<void(std::unique_ptr<Response>)> m_Callback;
+  std::shared_ptr<Request> m_Request;
+  boost::beast::flat_buffer m_Buffer;
+  boost::beast::http::request<boost::beast::http::string_body> m_HTTPRequest;
+  boost::beast::http::response<boost::beast::http::dynamic_body> m_HTTPResponse;
+  boost::asio::ip::tcp::resolver m_Resolver;
+  boost::asio::ip::tcp::socket m_Socket;
 };
 
 }  // namespace client

@@ -1,5 +1,5 @@
 /**                                                                                           //
- * Copyright (c) 2015-2017, The Kovri I2P Router Project                                      //
+ * Copyright (c) 2015-2018, The Kovri I2P Router Project                                      //
  *                                                                                            //
  * All rights reserved.                                                                       //
  *                                                                                            //
@@ -113,7 +113,7 @@ bool I2PControlCommand::Impl(
     const std::vector<std::string>& args)
 {
   m_Service = std::make_shared<boost::asio::io_service>();
-  m_Client = std::make_unique<client::I2PControlClient>(m_Service);
+  m_Client = std::make_shared<client::I2PControlClient>(*m_Service.get());
   try
     {
       std::vector<std::string> inputs;
