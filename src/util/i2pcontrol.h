@@ -1,5 +1,5 @@
 /**                                                                                           //
- * Copyright (c) 2015-2017, The Kovri I2P Router Project                                      //
+ * Copyright (c) 2015-2018, The Kovri I2P Router Project                                      //
  *                                                                                            //
  * All rights reserved.                                                                       //
  *                                                                                            //
@@ -80,7 +80,7 @@ class I2PControlCommand : public Command
   bpo::options_description m_Options;
   std::string m_Command;
   std::shared_ptr<boost::asio::io_service> m_Service;
-  std::unique_ptr<client::I2PControlClient> m_Client;
+  std::shared_ptr<client::I2PControlClient> m_Client;
 
  private:
   void ProcessRouterManager(
