@@ -93,7 +93,8 @@ std::size_t AddressBookStorage::Load(AddressMap& addresses)
 {
   std::size_t num = 0;
   // TODO(oneiric): generalize to multiple subscription files see #337
-  auto filename = core::GetPath(core::Path::AddressBook) / GetDefaultAddressesFilename();
+  const auto filename = core::GetPath(core::Path::AddressBook)
+                  / GetAddressesFilename(SubscriptionType::Default);
   std::ifstream file(filename.string());
   if (!file) {
     LOG(warning) << "AddressBookStorage: " << filename << " not found";
@@ -127,7 +128,8 @@ std::size_t AddressBookStorage::Save(const AddressMap& addresses)
 {
   std::size_t num = 0;
   // TODO(oneiric): generalize to multiple subscription files see #337
-  auto filename = core::GetPath(core::Path::AddressBook)/ GetDefaultAddressesFilename();
+  const auto filename = core::GetPath(core::Path::AddressBook)
+                        / GetAddressesFilename(SubscriptionType::Default);
   std::ofstream file(filename.string(), std::ofstream::out);
   if (!file) {
     LOG(error) << "AddressBookStorage: can't open file " << filename;
@@ -143,6 +145,32 @@ std::size_t AddressBookStorage::Save(const AddressMap& addresses)
     }
     LOG(info) << "AddressBookStorage: " << num << " addresses saved";
   }
+  return num;
+}
+
+std::size_t AddressBookStorage::SaveSubscription(
+    const std::map<std::string, kovri::core::IdentityEx>& addresses,
+    SubscriptionType sub)
+{
+  std::size_t num = 0;
+  auto filename = core::GetPath(core::Path::AddressBook)/ GetSubscriptionFilename(sub);
+  LOG(debug) << "AddressBookStorage: opening subscription file " << filename;
+  std::ofstream file(filename.string(), std::ofstream::out);
+  if (!file)
+    {
+      LOG(error) << "AddressBookStorage: can't open subscription " << filename;
+    }
+  else
+    {
+      for (auto const& it : addresses)
+        {
+          file << it.first << "=" << it.second.ToBase64() << std::endl;
+          num++;
+        }
+      LOG(info) << "AddressBookStorage: " << num << " addresses saved";
+    }
+  // Flush subscription file
+  file << std::flush;
   return num;
 }
 
