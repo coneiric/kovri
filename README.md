@@ -125,8 +125,8 @@ $ docker build -t kovri:latest .
 - IRC: [Freenode](https://webchat.freenode.net/) | Irc2P with Kovri
   - `#kovri` | Community & Support Channel
   - `#kovri-dev` | Development Channel
+- [Kovri Slack](https://kovri-project.slack.com/) (invitation needed via Email or IRC)
 - [Monero Mattermost](https://mattermost.getmonero.org/)
-- [Monero Slack](https://monero.slack.com/) (ask for an invite on IRC)
 - [Monero StackExchange](https://monero.stackexchange.com/)
 - [Reddit /r/Kovri](https://www.reddit.com/r/Kovri/)
 - Twitter: [@getkovri](https://twitter.com/getkovri)
