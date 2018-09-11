@@ -8,7 +8,7 @@
 	branch = kovri
 [submodule "docs"]
 	path = docs
-	url = https://github.com/monero-project/kovri-docs.git
+	url = https://gitlab.com/kovri-project/kovri-docs.git
 [submodule "deps/miniupnp"]
 	path = deps/miniupnp
 	url = https://github.com/monero-project/miniupnp
