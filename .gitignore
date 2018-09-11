@@ -14,7 +14,7 @@ config.status
 config.sub
 
 # Monero-specific
-github-merge.sh
+gitlab-merge.sh
 
 # Doxygen
 doc/Doxygen
