@@ -1,4 +1,4 @@
-[<img width="300" src="https://static.getmonero.org/images/kovri/logo.png" alt="ˈKoʊvriː" />](https://github.com/monero-project/kovri)
+[<img width="300" src="https://static.getmonero.org/images/kovri/logo.png" alt="ˈKoʊvriː" />](https://gitlab.com/kovri-project/kovri)
 
 1. [To cover, veil, wrap](https://en.wikipedia.org/wiki/Esperanto)
 2. A free, decentralized, anonymity technology based on [I2P](https://getmonero.org/resources/moneropedia/i2p.html)'s open specifications
@@ -14,11 +14,11 @@
 ## Multilingual README
 This page is also available in the following languages
 
-- [Italiano](https://github.com/monero-project/kovri-docs/blob/master/i18n/it/README.md)
+- [Italiano](https://gitlab.com/kovri-project/kovri-docs/blob/master/i18n/it/README.md)
 - Español
 - Pусский
-- [Français](https://github.com/monero-project/kovri-docs/blob/master/i18n/fr/README.md)
-- [Deutsch](https://github.com/monero-project/kovri-docs/blob/master/i18n/de/README.md)
+- [Français](https://gitlab.com/kovri-project/kovri-docs/blob/master/i18n/fr/README.md)
+- [Deutsch](https://gitlab.com/kovri-project/kovri-docs/blob/master/i18n/de/README.md)
 - Dansk
 
 ## Downloads
@@ -79,10 +79,10 @@ Optional:
 
 ### Make and install
 
-**Do *not* use the zip file from github: do a recursive clone only**
+**Do *not* use the zip file from gitlab: do a recursive clone only**
 
 ```bash
-$ git clone --recursive https://github.com/monero-project/kovri
+$ git clone --recursive https://gitlab.com/kovri-project/kovri
 $ cd kovri && make release  # see the Makefile for all build options
 $ make install
 ```
@@ -99,13 +99,13 @@ $ docker build -t kovri:latest .
 ```
 
 ## Documentation and Development
-- A [User Guide](https://github.com/monero-project/kovri-docs/blob/master/i18n/en/user_guide.md) is available for all users
-- A [Developer Guide](https://github.com/monero-project/kovri-docs/blob/master/i18n/en/developer_guide.md) is available for developers (please read before opening a pull request)
-- More documentation can be found in your language of choice within the [kovri-docs](https://github.com/monero-project/kovri-docs/) repository
+- A [User Guide](https://gitlab.com/kovri-project/kovri-docs/blob/master/i18n/en/user_guide.md) is available for all users
+- A [Developer Guide](https://gitlab.com/kovri-project/kovri-docs/blob/master/i18n/en/developer_guide.md) is available for developers (please read before opening a pull request)
+- More documentation can be found in your language of choice within the [kovri-docs](https://gitlab.com/kovri-project/kovri-docs/) repository
 - [Moneropedia](https://getmonero.org/resources/moneropedia/kovri.html) is recommended for all users and developers
 - [Forum Funding System](https://forum.getmonero.org/8/funding-required) to get funded for your work, [submit a proposal](https://forum.getmonero.org/7/open-tasks/2379/forum-funding-system-ffs-sticky)
 - [repo.getmonero.org](https://repo.getmonero.org/monero-project/kovri) or monero-repo.i2p are alternatives to GitLab for non-push repository access
-- See also [kovri-site](https://github.com/monero-project/kovri-site) and [monero/kovri meta](https://github.com/monero-project/meta)
+- See also [kovri-site](https://gitlab.com/kovri-project/kovri-site) and [monero/kovri meta](https://github.com/monero-project/meta)
 
 ## Vulnerability Response
 - Our [Vulnerability Response Process](https://github.com/monero-project/meta/blob/master/VULNERABILITY_RESPONSE_PROCESS.md) encourages responsible disclosure
