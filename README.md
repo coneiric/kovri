@@ -115,17 +115,14 @@ $ docker build -t kovri:latest .
 - IRC: [Freenode](https://webchat.freenode.net/) | Irc2P with Kovri
   - `#kovri` | Community & Support Channel
   - `#kovri-dev` | Development Channel
+- Twitter: [@getkovri](https://twitter.com/getkovri)
+- Email:
+  - anonimal [at] getmonero.org
+  - PGP Key fingerprint: 1218 6272 CD48 E253 9E2D  D29B 66A7 6ECF 9144 09F1
 - [Kovri Slack](https://kovri-project.slack.com/) (invitation needed via Email or IRC)
 - [Monero Mattermost](https://mattermost.getmonero.org/)
 - [Monero StackExchange](https://monero.stackexchange.com/)
 - [Reddit /r/Kovri](https://www.reddit.com/r/Kovri/)
-- Twitter: [@getkovri](https://twitter.com/getkovri)
-- Email:
-  - General Purpose / Media Contact
-    - dev [at] getmonero.org
-  - All other contact
-    - anonimal [at] getmonero.org
-    - PGP Key fingerprint: 1218 6272 CD48 E253 9E2D  D29B 66A7 6ECF 9144 09F1
 
 ## Donations
 - Visit our [Donations Page](https://getmonero.org/getting-started/donate/) to help Kovri with your donations
