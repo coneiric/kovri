@@ -45,7 +45,7 @@ This page is also available in the following languages
 | Type      | Status |
 |-----------|--------|
 | Coverity  | [![Coverity Status](https://scan.coverity.com/projects/7621/badge.svg)](https://scan.coverity.com/projects/7621/)
-| Coveralls | [![Coveralls Status](https://coveralls.io/repos/github/monero-project/kovri/badge.svg?branch=master)](https://coveralls.io/github/monero-project/kovri?branch=master)
+| Codecov   | [![Codecov](https://codecov.io/gl/kovri-project/kovri/branch/master/graph/badge.svg)](https://codecov.io/gl/kovri-project/kovri)
 | License   | [![License](https://img.shields.io/badge/license-BSD3-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 
 ## Building
