@@ -204,12 +204,7 @@ optimized-hardened-tests: deps
 
 # Produce build with coverage. Note: leaving out hardening because of need for optimizations
 coverage: deps
-	$(eval cmake-kovri += $(cmake-debug) $(cmake-coverage) $(cmake-kovri-util))
-	$(call CMAKE,$(build),$(cmake-kovri)) && $(MAKE) -C $(build) $(cmake_target)
-
-# Produce unit-tests with coverage
-coverage-tests: deps
-	$(eval cmake-kovri += $(cmake-debug) $(cmake-coverage) $(cmake-tests))
+	$(eval cmake-kovri += $(cmake-debug) $(cmake-coverage) $(cmake-kovri-util) $(cmake-tests))
 	$(call CMAKE,$(build),$(cmake-kovri)) && $(MAKE) -C $(build) $(cmake_target)
 
 # Produce vanilla unit-tests
