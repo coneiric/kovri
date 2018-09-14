@@ -29,10 +29,10 @@ build:
     - ./kovri --help 1>&2>/dev/null || ./kovri-util --disable-console-log --help && ./kovri-tests
     - lcov --directory . --capture --output-file coverage.info
     - lcov --remove coverage.info
-      "${HOME}/deps/cpp-netlib/*"
-      "${HOME}/deps/cryptopp/*"
-      "${HOME}/deps/miniupnp/*"
-      "${HOME}/deps/webrtc/*"
+      "/builds/kovri-project/kovri/deps/cpp-netlib/*"
+      "/builds/kovri-project/kovri/deps/cryptopp/*"
+      "/builds/kovri-project/kovri/deps/miniupnp/*"
+      "/builds/kovri-project/kovri/deps/webrtc/*"
       '/usr/*'
       --output-file coverage.info
     - lcov --list coverage.info
