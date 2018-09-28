@@ -102,22 +102,6 @@ void Instance::Start()
       LOG(debug) << "Instance: starting NetDb";
       if (!netdb.Start())
         throw std::runtime_error("Instance: NetDb failed to start");
-
-      // Reseed
-      if (netdb.GetNumRouters() < NetDb::Size::MinRequiredRouters)
-        {
-          LOG(debug) << "Instance: reseeding NetDb";
-          // TODO(anonimal): we musn't use client code in core...
-          client::Reseed reseed;
-          if (!reseed.Start())
-            throw std::runtime_error("Instance: reseed failed");
-        }
-
-      LOG(debug) << "Instance: starting transports";
-      transports.Start();
-
-      LOG(debug) << "Instance: starting tunnels";
-      tunnels.Start();
     }
   catch (...)
     {
