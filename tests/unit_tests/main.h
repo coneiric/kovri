@@ -37,6 +37,15 @@
 
 #include <boost/test/unit_test.hpp>
 
+// Placeholder namespaces to fix include bug
+namespace kovri {
+  namespace core {
+    namespace crypto {}
+  }  // namespace core
+  namespace client {}
+}  // namespace kovri
+  
+
 namespace core = kovri::core;
 namespace crypto = core::crypto;
 namespace client = kovri::client;
