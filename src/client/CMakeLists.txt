@@ -52,10 +52,7 @@ add_library(kovri-client
 target_include_directories(kovri-client PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
 target_link_libraries(kovri-client PRIVATE 
   kovri-core
-  kovri-private
-  cppnetlib::uri
-  PUBLIC
-  cppnetlib::client-connections)
+  kovri-private)
 
 if (COMMAND cotire)
   set_target_properties(kovri-client PROPERTIES COTIRE_PREFIX_HEADER_INCLUDE_PATH "${CMAKE_SOURCE_DIR}/deps")

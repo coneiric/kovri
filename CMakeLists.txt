@@ -46,7 +46,6 @@ option(WITH_KOVRI_UTIL "Build kovri utility binary" OFF)
 option(WITH_COVERAGE   "Build with coverage" OFF)
 option(WITH_CRYPTOPP   "Build with Crypto++" ON)  # Default ON unless we switch libraries
 option(BUILD_CRYPTOPP  "Build Crypto++ inside cmake" OFF)
-option(WITH_CPPNETLIB  "Build with cpp-netlib" ON)
 option(WITH_DOXYGEN    "Enable support for Doxygen" OFF)
 option(WITH_HARDENING  "Use hardening compiler flags" OFF)
 option(WITH_OPTIMIZE   "Optimization flags" OFF)
@@ -294,7 +293,7 @@ if(WITH_CRYPTOPP)
 endif()
 
 # Despite only cpp-netlib requiring openssl, OSX and ANDROID apparently needs this as well
-if (APPLE OR ANDROID)
+if (APPLE OR ANDROID OR WITH_BEAST)
   # If we're on OS X check for Homebrew's copy of OpenSSL instead of Apple's
   if (APPLE AND NOT OpenSSL_DIR)
     execute_process (COMMAND brew --prefix openssl
@@ -315,17 +314,6 @@ else()
 endif()
 
 add_subdirectory(deps)
-
-# Note: we're actually building off branch 0.13-release - not 0.12.0.
-if(WITH_CPPNETLIB)
-  set(CPP-NETLIB_BUILD_SHARED_LIBS ${WITH_SHARED_DEPS} CACHE BOOL "Build cpp-netlib as shared libraries.")
-  set(CPP-NETLIB_BUILD_TESTS OFF CACHE BOOL "Build the cpp-netlib project tests.") 
-  set(CPP-NETLIB_BUILD_EXAMPLES OFF CACHE BOOL  "Build the cpp-netlib project examples.") 
-  set(CPP-NETLIB_ENABLE_HTTPS ON CACHE BOOL  "Build cpp-netlib with support for https if OpenSSL is found.") 
-  set(CPP-NETLIB_STATIC_OPENSSL ${WITH_STATIC_DEPS} CACHE BOOL  "Build cpp-netlib using static OpenSSL") 
-  set(CPP-NETLIB_STATIC_BOOST ${WITH_STATIC} CACHE BOOL "Build cpp-netlib using static Boost") 
-  add_subdirectory(deps/cpp-netlib)
-endif()
 
 if(WITH_FUZZ_TESTS)
   if(NOT CLANG)

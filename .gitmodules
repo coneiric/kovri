@@ -1,7 +1,3 @@
-[submodule "deps/cpp-netlib"]
-	path = deps/cpp-netlib
-	url = https://github.com/anonimal/cpp-netlib.git
-	branch = kovri
 [submodule "deps/cryptopp"]
 	path = deps/cryptopp
 	url = https://github.com/anonimal/cryptopp.git
