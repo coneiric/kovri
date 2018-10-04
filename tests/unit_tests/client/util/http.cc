@@ -42,13 +42,13 @@ BOOST_AUTO_TEST_CASE(UriParse) {
   // Note: more unit-tests in util/uri/parser.cc
   // We simply test our implementation here.
   http.SetURI("https://domain.org:8443/path/file.type");
-  BOOST_CHECK(http.GetURI().is_valid() && !http.HostIsI2P());
+  BOOST_CHECK(http.ValidURI() && !http.HostIsI2P());
 
   http.SetURI("3;axc807uasdfh123m,nafsdklfj;;klj0a9u01q3");
-  BOOST_CHECK(!http.GetURI().is_valid());
+  BOOST_CHECK(!http.ValidURI());
 
   http.SetURI("http://username:password@udhdrtrcetjm5sxzskjyr5ztpeszydbh4dpl3pl4utgqqw2v4jna.b32.i2p/hosts.txt");
-  BOOST_CHECK(http.GetURI().is_valid() && http.HostIsI2P());
+  BOOST_CHECK(http.ValidURI() && http.HostIsI2P());
 }
 
 BOOST_AUTO_TEST_SUITE_END()

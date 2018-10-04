@@ -33,9 +33,6 @@
 #ifndef SRC_CLIENT_UTIL_HTTP_H_
 #define SRC_CLIENT_UTIL_HTTP_H_
 
-// cpp-netlib
-#include <boost/network/uri.hpp>
-
 // beast
 #include <boost/beast/core.hpp>
 #include <boost/beast/http.hpp>
@@ -54,6 +51,7 @@
 #include <string>
 
 #include "client/reseed.h"
+#include "client/util/uri/parser.h"
 #include "core/util/log.h"
 
 namespace kovri {
@@ -159,8 +157,12 @@ class HTTP : public HTTPStorage {
   HTTP() {}  // for HTTPProxy and tests
   ~HTTP() {}
 
-  HTTP(const std::string& uri) : m_URI(uri)
+  HTTP(const std::string& uri)
   {
+    URI::ParseURL(uri, m_URI, m_URIError);
+    if (m_URIError)
+      throw std::invalid_argument(std::string(__func__) + ": invalid URI");
+
     LOG(debug) << "HTTP: constructor URI " << uri;
   }
 
@@ -169,20 +171,27 @@ class HTTP : public HTTPStorage {
   void SetURI(const std::string& uri)
   {
     LOG(debug) << "HTTP: Set URI " << uri;
+    // Reset URI error
+    m_URIError.assign(0, m_URIError.category());
     // Remove existing URI if set
-    if (!m_URI.string().empty()) {
-      boost::network::uri::uri new_uri;
-      m_URI.swap(new_uri);
+    if (!m_URI.uri().empty()) {
+      m_URI.clear();
+      URI::ParseURL(uri, m_URI, m_URIError);
     }
-    // Set new URI
-    m_URI.append(uri);
+    else
+      URI::ParseURL(uri, m_URI, m_URIError);  // Set new URI
   }
 
   /// @brief Get initialized URI
   /// @return cpp-netlib URI object
-  boost::network::uri::uri GetURI() const
+  URIBuffer GetURI() const
   {
     return m_URI;
+  }
+
+  bool ValidURI() const
+  {
+    return !m_URIError;
   }
 
   /// @brief Tests if TLD is I2P
@@ -217,8 +226,12 @@ class HTTP : public HTTPStorage {
   bool DownloadViaI2P();
 
   /// @var m_URI
-  /// @brief cpp-netlib URI instance
-  boost::network::uri::uri m_URI;
+  /// @brief URI instance
+  URIBuffer m_URI;
+
+  /// @var m_URIError
+  /// @brief URI error code
+  boost::system::error_code m_URIError;
 
  public:
   // TODO(anonimal): remove after refactor

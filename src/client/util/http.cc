@@ -59,7 +59,7 @@ bool HTTP::Download(
 }
 
 bool HTTP::Download() {
-  if (!GetURI().is_valid()) {
+  if (!ValidURI()) {
     LOG(error) << "URI: invalid URI";
     return false;
   }
@@ -88,21 +88,11 @@ void HTTP::AmendURI()
     return;
   // We must assign a port if none was assigned (for internal reasons)
   LOG(trace) << "HTTP : Amending URI";
-  std::string port;
   if (uri.scheme() == "https")
-    port.assign("443");
+    uri.port("443");
   else
-    port.assign("80");
-  // If user supplied user:password, we must append @
-  std::string user_info;
-  if (!uri.user_info().empty())
-    user_info.assign(uri.user_info() + "@");
-  // TODO(anonimal): easier way with cpp-netlib?
-  std::string new_uri(
-      uri.scheme() + "://" + user_info
-      + uri.host() + ":" + port
-      + uri.path() + uri.query() + uri.fragment());
-  SetURI(new_uri);
+    uri.port("80");
+  SetURI(uri.update_uri().to_string());
 }
 
 bool HTTP::DownloadViaClearnet() {
@@ -118,7 +108,8 @@ bool HTTP::DownloadViaClearnet() {
     {
       try
         {
-          const std::string cert = uri.host() + ".crt";
+          const auto host = uri.host().to_string();
+          const std::string cert = host + ".crt";
           const boost::filesystem::path cert_path =
               core::GetPath(core::Path::TLS) / cert;
           if (!boost::filesystem::exists(cert_path))
@@ -138,8 +129,9 @@ bool HTTP::DownloadViaClearnet() {
               | ssl::context::default_workarounds
               | ssl::context::single_dh_use);
 
-          if (uri.path() != GetPreviousPath())
-            SetPath(uri.path());
+          const auto path = uri.path().to_string();
+          if (path != GetPreviousPath())
+            SetPath(path);
 
           // These objects perform our I/O
           tcp::resolver resolver(ioc);
@@ -147,7 +139,7 @@ bool HTTP::DownloadViaClearnet() {
 
           // Set SNI Hostname (many hosts need this to handshake successfully)
           if (!SSL_set_tlsext_host_name(
-                  stream.native_handle(), uri.host().c_str()))
+                  stream.native_handle(), host.c_str()))
             {
               boost::system::error_code ec{
                   static_cast<int>(::ERR_get_error()),
@@ -164,24 +156,21 @@ bool HTTP::DownloadViaClearnet() {
               ":!aNULL:!MD5");
 
           // Look up the domain name
-          const auto port = uri.port().empty() ? "443" : uri.port();
-          LOG(debug) << "HTTP: resolving host: " << uri.host()
-                     << " port: " << port;
-          const auto results = resolver.resolve(uri.host(), port);
+          const auto port = uri.port().empty() ? "443" : uri.port().to_string();
+          LOG(debug) << "HTTP: resolving host: " << host << " port: " << port;
+          const auto results = resolver.resolve(host, port);
 
           boost::asio::connect(
               stream.next_layer(), results.begin(), results.end());
           stream.handshake(ssl::stream_base::client);
 
           // Set up an HTTP GET request message
-          http::request<http::dynamic_body> req(http::verb::get, uri.path(), 11);
-          req.set(http::field::host, uri.host());
+          http::request<http::dynamic_body> req(http::verb::get, path, 11);
+          req.set(http::field::host, host);
           req.set(http::field::user_agent, "Wget/1.11.4");
           req.set(http::field::etag, GetPreviousETag());
           req.set(http::field::last_modified, GetPreviousLastModified());
-          req.set(
-              http::field::timeout,
-              static_cast<std::uint8_t>(Timeout::Request));
+          req.set(http::field::timeout, core::GetType(Timeout::Request));
           LOG(trace) << "HTTP: Request: "
                      << kovri::core::LogNetMessageToString(req);
 
@@ -207,7 +196,7 @@ bool HTTP::DownloadViaClearnet() {
                 SetDownloadedContents(os.str());
                 break;
               case http::status::not_modified:
-                LOG(info) << "HTTP: no updates available from " << uri.host();
+                LOG(info) << "HTTP: no updates available from " << host;
                 break;
               default:
                 LOG(warning) << "HTTP: response code: " << res.result();
@@ -242,7 +231,7 @@ bool HTTP::DownloadViaI2P()
   // For identity hash of URI host
   kovri::core::IdentHash ident;
   // Get URI host's ident hash then find its lease-set
-  if (address_book.CheckAddressIdentHashFound(uri.host(), ident)
+  if (address_book.CheckAddressIdentHashFound(uri.host().to_string(), ident)
       && address_book.GetSharedLocalDestination()) {
     std::condition_variable new_data_received;
     std::mutex new_data_received_mutex;
@@ -262,22 +251,20 @@ bool HTTP::DownloadViaI2P()
         //   In testing, even after integration, results vary dramatically.
         //   This could be a router issue or something amiss during the refactor.
         if (new_data_received.wait_for(
-                lock,
-                std::chrono::seconds(
-                    static_cast<std::uint8_t>(Timeout::Request)))
+                lock, std::chrono::seconds(core::GetType(Timeout::Request)))
             == std::cv_status::timeout)
           LOG(error) << "HTTP: lease-set request timeout expired";
       }
     // Test against requested lease-set
     if (!lease_set) {
-      LOG(error) << "HTTP: lease-set for address " << uri.host() << " not found";
+      LOG(error) << "HTTP: lease-set for address " << uri.host().to_string() << " not found";
     } else {
       PrepareI2PRequest();  // TODO(anonimal): remove after refactor
       // Send request
       auto stream =
         kovri::client::context.GetAddressBook().GetSharedLocalDestination()->CreateStream(
             lease_set,
-            std::stoi(uri.port()));
+            std::stoi(uri.port().to_string()));
       stream->Send(
           reinterpret_cast<const std::uint8_t *>(m_Request.str().c_str()),
           m_Request.str().length());
@@ -314,7 +301,7 @@ bool HTTP::DownloadViaI2P()
         m_Response.write(reinterpret_cast<char *>(buf.data()), len);
     }
   } else {
-    LOG(error) << "HTTP: can't resolve I2P address: " << uri.host();
+    LOG(error) << "HTTP: can't resolve I2P address: " << uri.host().to_string();
     return false;
   }
   return ProcessI2PResponse();  // TODO(anonimal): remove after refactor
@@ -325,8 +312,8 @@ void HTTP::PrepareI2PRequest() {
   // Create header
   const auto uri = GetURI();
   std::string header =
-    "GET " + uri.path() + " HTTP/1.1\r\n" +
-    "Host: " + uri.host() + "\r\n" +
+    "GET " + uri.path().to_string() + " HTTP/1.1\r\n" +
+    "Host: " + uri.host().to_string() + "\r\n" +
     "Accept: */*\r\n" +
     "User-Agent: Wget/1.11.4\r\n" +
     "Connection: Close\r\n";
@@ -399,7 +386,8 @@ bool HTTP::ProcessI2PResponse() {
     }
   else if (http::int_to_status(response_code) == http::status::not_modified)
     {
-      LOG(info) << "HTTP: no new updates available from " << GetURI().host();
+      LOG(info) << "HTTP: no new updates available from "
+                << GetURI().host().to_string();
     }
   else
     {
