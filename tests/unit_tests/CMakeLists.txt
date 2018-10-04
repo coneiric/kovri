@@ -12,6 +12,7 @@ add_executable(kovri-tests
   client/util/http.cc
   client/util/parse.cc
   client/util/zip.cc
+  client/util/uri/parser.cc
   core/crypto/aes.cc
   core/crypto/dsa.cc
   core/crypto/ed25519.cc

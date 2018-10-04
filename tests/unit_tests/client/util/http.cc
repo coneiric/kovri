@@ -39,7 +39,7 @@ BOOST_AUTO_TEST_SUITE(HTTPUtilityTests)
 kovri::client::HTTP http;
 
 BOOST_AUTO_TEST_CASE(UriParse) {
-  // Note: cpp-netlib has better tests.
+  // Note: more unit-tests in util/uri/parser.cc
   // We simply test our implementation here.
   http.SetURI("https://domain.org:8443/path/file.type");
   BOOST_CHECK(http.GetURI().is_valid() && !http.HostIsI2P());
