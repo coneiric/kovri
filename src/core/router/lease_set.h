@@ -78,6 +78,13 @@ class LeaseSet : public RoutingDestination {
   explicit LeaseSet(
       const kovri::core::TunnelPool& pool);
 
+  /// @brief Create a LeaseSet with N Leases
+  /// @param local Local destination for the LeaseSet
+  /// @param leases Leases to include in the LeaseSet
+  LeaseSet(
+      const core::LocalDestination& local,
+      const std::vector<Lease>& leases);
+
   ~LeaseSet() {}
 
   void Update(

@@ -109,6 +109,68 @@ LeaseSet::LeaseSet(
   ReadFromBuffer();
 }
 
+LeaseSet::LeaseSet(
+    const core::LocalDestination& local,
+    const std::vector<Lease>& leases)
+    : m_Buffer(new std::uint8_t[LeaseSetSize::MaxBuffer])
+{
+    // Check if leases exceed the limit, see spec
+    if (leases.size() > LeaseSetSize::MaxLeases)
+      throw std::invalid_argument(std::string(__func__) + ": too many leases");
+
+    // Prepare the LeaseSet
+    m_Leases = leases;
+    m_Identity = local.GetIdentity();
+
+    // Copy destination identity to buffer
+    core::OutputByteStream stream(m_Buffer.get(), LeaseSetSize::MaxBuffer);
+    stream.SkipBytes(m_Identity.GetFullLen());
+    m_Identity.ToBuffer(m_Buffer.get(), LeaseSetSize::MaxBuffer);
+
+    const std::uint8_t* crypto_pubkey = local.GetEncryptionPublicKey();
+
+    // Copy destination encryption public key to data member
+    std::copy(
+        crypto_pubkey,
+        crypto_pubkey + crypto::PkLen::ElGamal,
+        m_EncryptionKey.data());
+
+    // Copy destination encryption public key to buffer
+    stream.WriteData(m_EncryptionKey.data(), m_EncryptionKey.size());
+
+    // Zero-out unused signing key
+    const std::vector<std::uint8_t> empty_sign_key(
+        m_Identity.GetSigningPublicKeyLen());
+    stream.WriteData(empty_sign_key.data(), empty_sign_key.size());
+
+    // Set the number of leases
+    stream.Write<std::uint8_t>(m_Leases.size());
+
+    for (const auto lease : m_Leases)
+      {
+        // Copy the lease's gateway id to the buffer
+        stream.WriteData(lease.tunnel_gateway(), LeaseSetSize::GatewayID);
+
+        // Copy the lease's tunnel id to the buffer
+        stream.Write<std::uint32_t>(lease.tunnel_ID);
+
+        // Copy the lease's expiration date to the buffer
+        stream.Write<std::uint64_t>(lease.end_date);
+      }
+
+    // Sign the LeaseSet
+    const std::size_t bytes_written = stream.size() - stream.gcount();
+    std::uint8_t* signature = stream.data() + bytes_written;
+    local.Sign(stream.data(), bytes_written, signature);
+
+    // Verify LeaseSet signature
+    if (!m_Identity.Verify(stream.data(), bytes_written, signature))
+      throw std::runtime_error(std::string(__func__) + ": invalid signature");
+
+    m_BufferLen = bytes_written + m_Identity.GetSignatureLen();
+    m_IsValid = true;
+}
+
 void LeaseSet::Update(
     const std::uint8_t* buf,
     std::size_t len) {
