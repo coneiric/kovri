@@ -38,6 +38,24 @@
 
 namespace kovri {
 namespace core {
+namespace crypto
+{
+namespace PkLen
+{
+enum
+{
+  ElGamal = 256,
+};
+}  // namespace PkLen
+
+namespace SkLen
+{
+enum
+{
+  ElGamal = 256,
+};
+}  // namespace SkLen
+}  // namespace crypto
 
 /// @class ElGamalEncryption
 class ElGamalEncryption {
