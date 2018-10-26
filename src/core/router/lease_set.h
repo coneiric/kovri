@@ -58,7 +58,16 @@ struct Lease {
   }
 };
 
-const int MAX_LS_BUFFER_SIZE = 3072;
+enum LeaseSetSize : std::uint16_t
+{
+  MaxBuffer = 3072,
+  MaxLeases = 16,
+  NumLeaseLen = 1,
+  GatewayID = 32,
+  TunnelID = 4,
+  EndDate = 8,
+  LeaseSize = 44,  // GatewayID + TunnelID + EndDate
+};
 
 class LeaseSet : public RoutingDestination {
  public:

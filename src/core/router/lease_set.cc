@@ -67,10 +67,9 @@ LeaseSet::LeaseSet(
     LOG(error) << "LeaseSet: destination for local LeaseSet doesn't exist";
     return;
   }
-  m_Buffer = std::make_unique<std::uint8_t[]>(MAX_LS_BUFFER_SIZE);
+  m_Buffer = std::make_unique<std::uint8_t[]>(LeaseSetSize::MaxBuffer);
   m_BufferLen = local_destination->GetIdentity().ToBuffer(
-      m_Buffer.get(),
-      MAX_LS_BUFFER_SIZE);
+      m_Buffer.get(), LeaseSetSize::MaxBuffer);
   memcpy(
       m_Buffer.get() + m_BufferLen,
       local_destination->GetEncryptionPublicKey(),
