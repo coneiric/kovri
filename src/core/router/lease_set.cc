@@ -74,8 +74,8 @@ LeaseSet::LeaseSet(
   memcpy(
       m_Buffer.get() + m_BufferLen,
       local_destination->GetEncryptionPublicKey(),
-      256);
-  m_BufferLen += 256;
+      crypto::PkLen::ElGamal);
+  m_BufferLen += crypto::PkLen::ElGamal;
   auto signing_key_len = local_destination->GetIdentity().GetSigningPublicKeyLen();
   memset(m_Buffer.get() + m_BufferLen, 0, signing_key_len);
   m_BufferLen += signing_key_len;
@@ -124,8 +124,8 @@ void LeaseSet::Update(
 
 void LeaseSet::ReadFromBuffer() {
   std::size_t size = m_Identity.FromBuffer(m_Buffer.get(), m_BufferLen);
-  memcpy(m_EncryptionKey.data(), m_Buffer.get() + size, 256);
-  size += 256;  // encryption key
+  memcpy(m_EncryptionKey.data(), m_Buffer.get() + size, crypto::PkLen::ElGamal);
+  size += crypto::PkLen::ElGamal;  // encryption key
   size += m_Identity.GetSigningPublicKeyLen();  // unused signing key
   std::uint8_t num = m_Buffer[size];
   size++;  // num

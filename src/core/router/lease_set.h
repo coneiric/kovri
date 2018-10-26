@@ -123,7 +123,7 @@ class LeaseSet : public RoutingDestination {
   bool m_IsValid;
   std::vector<Lease> m_Leases;
   IdentityEx m_Identity;
-  std::array<std::uint8_t, 256> m_EncryptionKey;
+  std::array<std::uint8_t, crypto::PkLen::ElGamal> m_EncryptionKey;
   std::unique_ptr<std::uint8_t[]> m_Buffer;
   std::size_t m_BufferLen;
 };
