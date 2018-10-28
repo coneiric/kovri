@@ -22,6 +22,7 @@ add_executable(kovri-tests
   core/router/identity.cc
   core/router/identity.h
   core/router/info.cc
+  core/router/lease_set.cc
   core/router/net_db/impl.cc
   core/router/transports/ssu/packet.cc
   core/util/buffer.cc
