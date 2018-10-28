@@ -113,6 +113,17 @@ class LeaseSet : public RoutingDestination {
     return m_Identity.GetIdentHash();
   }
 
+  std::uint8_t GetNumLeases() const
+  {
+    const std::uint8_t* num_leases = m_Buffer.get() + m_Identity.GetFullLen()
+                                     + crypto::PkLen::ElGamal
+                                     + m_Identity.GetSigningPublicKeyLen();
+    if (num_leases)
+      return *num_leases;
+    else
+      return 0;
+  }
+
   const std::vector<Lease>& GetLeases() const {
     return m_Leases;
   }
@@ -126,6 +137,11 @@ class LeaseSet : public RoutingDestination {
 
   const std::uint8_t* GetEncryptionPublicKey() const {
     return m_EncryptionKey.data();
+  }
+
+  const std::uint8_t* GetSignature() const
+  {
+    return m_Buffer.get() + (m_BufferLen - m_Identity.GetSignatureLen() - 1);
   }
 
   bool IsDestination() const {
