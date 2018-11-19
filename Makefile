@@ -140,7 +140,6 @@ define MAKE_CRYPTOPP
   datatest.cpp \
   default.cpp \
   default.h \
-  dessp.cpp \
   eax.cpp \
   eax.h \
   esign.cpp \
