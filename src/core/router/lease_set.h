@@ -47,6 +47,24 @@ namespace core {
 class TunnelPool;
 
 struct Lease {
+  Lease() : tunnel_gateway(), tunnel_ID(0), end_date(0) {}
+
+  /// @brief Conversion-ctor to create an initialized Lease
+  /// @param gateway_id IdentHash of the Lease's gateway
+  /// @param tunnel_id Tunnel ID for the Lease
+  /// @param end_date Expiration time for the Lease
+  /// @details Default Lease expiration is ten minutes after creation, see spec
+  Lease(
+      const core::IdentHash& gateway_id,
+      const std::uint32_t tunnel_id,
+      const std::uint64_t end_date = (std::chrono::steady_clock::now()
+                                      + std::chrono::minutes(10))
+                                         .time_since_epoch()
+                                         .count())
+      : tunnel_gateway(gateway_id), tunnel_ID(tunnel_id), end_date(end_date)
+  {
+  }
+
   IdentHash tunnel_gateway;
   std::uint32_t tunnel_ID;
   std::uint64_t end_date;
