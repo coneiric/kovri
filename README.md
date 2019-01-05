@@ -117,8 +117,7 @@ $ docker build -t kovri:latest .
   - `#kovri-dev` | Development Channel
 - Twitter: [@getkovri](https://twitter.com/getkovri)
 - Email:
-  - anonimal [at] getmonero.org
-  - PGP Key fingerprint: 1218 6272 CD48 E253 9E2D  D29B 66A7 6ECF 9144 09F1
+  - dev [at] kovri.io
 - [Kovri Slack](https://kovri-project.slack.com/) (invitation needed via Email or IRC)
 - [Monero Mattermost](https://mattermost.getmonero.org/)
 - [Monero StackExchange](https://monero.stackexchange.com/)
