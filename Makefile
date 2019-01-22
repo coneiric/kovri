@@ -114,15 +114,16 @@ define MAKE_CRYPTOPP
   arc4.h \
   aria.cpp \
   aria.h \
-  aria-simd.cpp \
+  aria_simd.cpp \
   ariatab.cpp \
+  bench.h \
   bench1.cpp \
   bench2.cpp \
-  bench.h \
   bfinit.cpp \
   blake2.cpp \
   blake2.h \
-  blake2-simd.cpp \
+  blake2b_simd.cpp \
+  blake2s_simd.cpp \
   blowfish.cpp \
   blowfish.h \
   blumshub.cpp \
@@ -134,9 +135,13 @@ define MAKE_CRYPTOPP
   casts.cpp \
   chacha.cpp \
   chacha.h \
+  chacha_avx.cpp \
+  chacha_simd.cpp \
   cham.cpp \
   cham.h \
-  cham-simd.cpp \
+  cham_simd.cpp \
+  darn.cpp \
+  darn.h \
   datatest.cpp \
   default.cpp \
   default.h \
@@ -164,9 +169,10 @@ define MAKE_CRYPTOPP
   kalynatab.cpp \
   keccak.cpp \
   keccak.h \
+  keccakc.cpp \
   lea.cpp \
   lea.h \
-  lea-simd.cpp \
+  lea_simd.cpp \
   luc.cpp \
   luc.h \
   mars.cpp \
@@ -180,8 +186,11 @@ define MAKE_CRYPTOPP
   panama.h \
   poly1305.cpp \
   poly1305.h \
-  ppc-simd.cpp \
-  ppc-simd.h \
+  ppc_power7.cpp \
+  ppc_power8.cpp \
+  ppc_power9.cpp \
+  ppc_simd.cpp \
+  ppc_simd.h \
   rabbit.cpp \
   rabbit.h \
   rabin.cpp \
@@ -207,26 +216,29 @@ define MAKE_CRYPTOPP
   sha3.h \
   shacal2.cpp \
   shacal2.h \
-  shacal2-simd.cpp \
-  sharkbox.cpp \
+  shacal2_simd.cpp \
   shark.cpp \
   shark.h \
+  sharkbox.cpp \
   simeck.cpp \
   simeck.h \
-  simeck-simd.cpp \
+  simeck_simd.cpp \
   simon.cpp \
   simon.h \
-  simon-simd.cpp \
+  simon128_simd.cpp \
+  simon64_simd.cpp \
   sm3.cpp \
   sm3.h \
   sm4.cpp \
   sm4.h \
-  sm4-simd.cpp \
+  sm4_simd.cpp \
   sosemanuk.cpp \
   sosemanuk.h \
+  speck-simd.cpp \
   speck.cpp \
   speck.h \
-  speck-simd.cpp \
+  speck128_simd.cpp \
+  speck64_simd.cpp \
   square.cpp \
   square.h \
   squaretb.cpp \
@@ -247,9 +259,9 @@ define MAKE_CRYPTOPP
   wake.cpp \
   wake.h \
   xtr.cpp \
+  xtr.h \
   xtrcrypt.cpp \
   xtrcrypt.h \
-  xtr.h \
   && $1
 endef
 
