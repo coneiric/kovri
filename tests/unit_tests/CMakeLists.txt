@@ -8,6 +8,7 @@ add_executable(kovri-tests
   client/api/i2p_control/parser.cc
   client/api/streaming.cc
   client/proxy/http.cc
+  client/destination.cc
   client/reseed.cc
   client/util/http.cc
   client/util/parse.cc
