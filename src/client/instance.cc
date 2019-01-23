@@ -38,6 +38,7 @@
 
 #include "client/context.h"
 
+#include "core/router/transports/impl.h"
 #include "core/util/log.h"
 
 namespace kovri
@@ -219,6 +220,21 @@ void Instance::Start()
     {
       LOG(debug) << "Instance: starting core";
       m_Core.Start();
+
+      // Reseed
+      if (core::netdb.GetNumRouters() < core::NetDb::Size::MinRequiredRouters)
+        {
+          LOG(debug) << "Instance: reseeding NetDb";
+          client::Reseed reseed;
+          if (!reseed.Start())
+            throw std::runtime_error("Instance: reseed failed");
+        }
+
+      LOG(debug) << "Instance: starting transports";
+      core::transports.Start();
+
+      LOG(debug) << "Instance: starting tunnels";
+      core::tunnels.Start();
 
       LOG(debug) << "Instance: starting client";
       context.Start();
