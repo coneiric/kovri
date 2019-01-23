@@ -263,7 +263,7 @@ void AddressBookSubscriber::DownloadSubscriptionImpl()
   bool download_result = m_HTTP.Download();
   if (download_result) {
       const auto sub_type =
-          m_HTTP.GetURI().string()
+          m_HTTP.GetURI().uri().to_string()
                   == m_Book.GetPublisherURI(SubscriptionType::Default)
               ? SubscriptionType::Default
               : SubscriptionType::User;
