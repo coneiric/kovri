@@ -31,10 +31,10 @@
  */
 
 #include "client/address_book/impl.h"
+#include "client/util/uri/parser.h"
 
 #include <boost/algorithm/string/trim.hpp>
 #include <boost/asio.hpp>
-#include <boost/network/uri.hpp>
 
 #include <array>
 #include <chrono>
@@ -145,7 +145,7 @@ void AddressBook::LoadPublishers() {
     // Publisher URI
     std::string publisher;
     // Validate publisher URI
-    boost::network::uri::uri uri;
+    URIBuffer pub_uri;
     // Read in publishers, line by line
     while (std::getline(file, publisher)) {
       // If found, clear whitespace before and after publisher (on the line)
@@ -159,10 +159,11 @@ void AddressBook::LoadPublishers() {
       if (!publisher.length())
         continue;
       // Perform URI sanity test
-      if (!uri.string().empty())
-        uri = boost::network::uri::uri();
-      uri.append(publisher);
-      if (!uri.is_valid())
+      if (!pub_uri.uri().empty())
+        pub_uri.clear();
+      boost::system::error_code ec;
+      URI::ParseURL(publisher, pub_uri, ec);
+      if (ec)
         {
           LOG(warning)
               << "AddressBook: invalid/malformed publisher URI, skipping";
@@ -256,7 +257,7 @@ void AddressBookSubscriber::DownloadSubscriptionImpl()
   // TODO(anonimal): ensure thread safety
   LOG(info)
     << "AddressBookSubscriber: downloading subscription "
-    << m_HTTP.GetURI().string()
+    << m_HTTP.GetURI().uri()
     << " ETag: " << m_HTTP.GetPreviousETag()
     << " Last-Modified: " << m_HTTP.GetPreviousLastModified();
   bool download_result = m_HTTP.Download();

@@ -74,7 +74,6 @@ target_include_directories(kovri-core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
 target_link_libraries(kovri-core
  PUBLIC 
    Boost::log
-   cppnetlib::client-connections
  PRIVATE
    kovri-private
    Boost::program_options)

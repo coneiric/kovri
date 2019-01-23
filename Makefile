@@ -91,7 +91,6 @@ cryptopp-native = CXXFLAGS="-march=native -DCRYPTOPP_NO_CPU_FEATURE_PROBES=1"  #
 
 # Filesystem
 build = build/
-build-cpp-netlib = deps/cpp-netlib/$(build)
 build-cryptopp = deps/cryptopp/  # No longer using CMake
 build-doxygen = doc/Doxygen
 
@@ -379,7 +378,7 @@ help:
 
 # Clean all build directories and Doxygen output
 clean:
-	$(eval remove-build = rm -fR $(build) $(build-cpp-netlib) $(build-doxygen) $(build-fuzzer) && cd $(build-cryptopp) && $(MAKE) clean)
+	$(eval remove-build = rm -fR $(build) $(build-doxygen) $(build-fuzzer) && cd $(build-cryptopp) && $(MAKE) clean)
 	@if [ "$$FORCE_CLEAN" = "yes" ]; then $(remove-build); \
 	else echo "CAUTION: This will remove the build directories for Kovri and all submodule dependencies, and remove all Doxygen output"; \
 	read -r -p "Is this what you wish to do? (y/N)?: " CONFIRM; \

@@ -32,10 +32,6 @@
 
 #include "client/util/http.h"
 
-#include <boost/network/message/directives/header.hpp>
-#include <boost/network/message/wrappers/body.hpp>
-#include <boost/network/protocol/http/response.hpp>
-
 #include <exception>
 #include <functional>
 #include <memory>
@@ -52,7 +48,7 @@
 namespace kovri {
 namespace client {
 
-namespace http = boost::network::http;
+namespace http = boost::beast::http;
 
 // TODO(unassigned): currently unused but will be useful
 // without needing to create a new object for each given URI
@@ -63,7 +59,7 @@ bool HTTP::Download(
 }
 
 bool HTTP::Download() {
-  if (!GetURI().is_valid()) {
+  if (!ValidURI()) {
     LOG(error) << "URI: invalid URI";
     return false;
   }
@@ -79,7 +75,7 @@ bool HTTP::Download() {
 
 bool HTTP::HostIsI2P() const
 {
-  auto uri = GetURI();
+  const auto uri = GetURI();
   if (!(uri.host().substr(uri.host().size() - 4) == ".i2p"))
     return false;
   return true;
@@ -92,134 +88,132 @@ void HTTP::AmendURI()
     return;
   // We must assign a port if none was assigned (for internal reasons)
   LOG(trace) << "HTTP : Amending URI";
-  std::string port;
   if (uri.scheme() == "https")
-    port.assign("443");
+    uri.port("443");
   else
-    port.assign("80");
-  // If user supplied user:password, we must append @
-  std::string user_info;
-  if (!uri.user_info().empty())
-    user_info.assign(uri.user_info() + "@");
-  // TODO(anonimal): easier way with cpp-netlib?
-  std::string new_uri(
-      uri.scheme() + "://" + user_info
-      + uri.host() + ":" + port
-      + uri.path() + uri.query() + uri.fragment());
-  SetURI(new_uri);
+    uri.port("80");
+  SetURI(uri.update_uri().to_string());
 }
 
 bool HTTP::DownloadViaClearnet() {
-  auto uri = GetURI();
+  using boost::asio::ip::tcp;
+  namespace ssl = boost::asio::ssl;
+
+  const auto uri = GetURI();
   // Create and set options
-  Options options;
-  options.timeout(static_cast<std::uint8_t>(Timeout::Request));
   LOG(debug) << "HTTP: Download Clearnet with timeout : "
              << kovri::core::GetType(Timeout::Request);
   // Ensure that we only download from explicit TLS-enabled hosts
-  if (!core::context.GetOpts()["disable-https"].as<bool>()) {
-    const std::string cert = uri.host() + ".crt";
-    const boost::filesystem::path cert_path = core::GetPath(core::Path::TLS) / cert;
-    if (!boost::filesystem::exists(cert_path)) {
-      LOG(error) << "HTTP: certificate unavailable: " << cert_path;
-      return false;
+  if (!core::context.GetOpts()["disable-https"].as<bool>())
+    {
+      try
+        {
+          const auto host = uri.host().to_string();
+          const std::string cert = host + ".crt";
+          const boost::filesystem::path cert_path =
+              core::GetPath(core::Path::TLS) / cert;
+          if (!boost::filesystem::exists(cert_path))
+            {
+              LOG(error) << "HTTP: certificate unavailable: " << cert_path;
+              return false;
+            }
+          LOG(trace) << "HTTP: Cert exists : " << cert_path;
+          boost::asio::io_context ioc;
+
+          ssl::context ctx(ssl::context::tlsv12_client);
+          ctx.load_verify_file(cert_path.string());
+          ctx.set_verify_mode(ssl::verify_peer);
+          ctx.set_options(
+              ssl::context::no_sslv2 | ssl::context::no_sslv3
+              | ssl::context::no_tlsv1 | ssl::context::no_tlsv1_1
+              | ssl::context::default_workarounds
+              | ssl::context::single_dh_use);
+
+          const auto path = uri.path().to_string();
+          if (path != GetPreviousPath())
+            SetPath(path);
+
+          // These objects perform our I/O
+          tcp::resolver resolver(ioc);
+          ssl::stream<tcp::socket> stream(ioc, ctx);
+
+          // Set SNI Hostname (many hosts need this to handshake successfully)
+          if (!SSL_set_tlsext_host_name(
+                  stream.native_handle(), host.c_str()))
+            {
+              boost::system::error_code ec{
+                  static_cast<int>(::ERR_get_error()),
+                  boost::asio::error::get_ssl_category()};
+              throw boost::system::system_error{ec};
+            }
+
+          SSL_set_cipher_list(
+              stream.native_handle(),
+              "DH+AESGCM:DH+AESGCM"
+              ":ECDH+AES256:DH+AES256"
+              ":ECDH+AES128:DH+AES"
+              ":RSA+AESGCM:RSA+AES"
+              ":!aNULL:!MD5");
+
+          // Look up the domain name
+          const auto port = uri.port().empty() ? "443" : uri.port().to_string();
+          LOG(debug) << "HTTP: resolving host: " << host << " port: " << port;
+          const auto results = resolver.resolve(host, port);
+
+          boost::asio::connect(
+              stream.next_layer(), results.begin(), results.end());
+          stream.handshake(ssl::stream_base::client);
+
+          // Set up an HTTP GET request message
+          http::request<http::dynamic_body> req(http::verb::get, path, 11);
+          req.set(http::field::host, host);
+          req.set(http::field::user_agent, "Wget/1.11.4");
+          req.set(http::field::etag, GetPreviousETag());
+          req.set(http::field::last_modified, GetPreviousLastModified());
+          req.set(http::field::timeout, core::GetType(Timeout::Request));
+          LOG(trace) << "HTTP: Request: "
+                     << kovri::core::LogNetMessageToString(req);
+
+          // Send the HTTP request to the remote host & process response
+          http::write(stream, req);
+          boost::beast::flat_buffer buffer;
+          http::response<http::dynamic_body> res;
+          http::read(stream, buffer, res);
+          LOG(trace) << "HTTP: Response: "
+                     << kovri::core::LogNetMessageToString(res);
+          std::ostringstream os;
+          const auto header = res.base();
+          switch (res.result())
+            {
+              case http::status::ok:
+                if (header["ETag"] != GetPreviousETag())
+                  SetETag(header["ETag"].to_string());
+
+                if (header["Last-Modified"] != GetPreviousLastModified())
+                  SetLastModified(header["Last-Modified"].to_string());
+
+                os << boost::beast::buffers(res.body().data());
+                SetDownloadedContents(os.str());
+                break;
+              case http::status::not_modified:
+                LOG(info) << "HTTP: no updates available from " << host;
+                break;
+              default:
+                LOG(warning) << "HTTP: response code: " << res.result();
+                return false;
+            }
+        }
+      catch (const std::exception& ex)
+        {
+          LOG(error) << "HTTP: unable to complete download: " << ex.what();
+          return false;
+        }
     }
-    LOG(trace) << "HTTP: Cert exists : " << cert_path;
-    // Set SSL options
-    options
-      .always_verify_peer(true)
-      .openssl_certificate(cert_path.string())
-      .openssl_sni_hostname(uri.host())
-      .openssl_ciphers(
-          "ECDH+AESGCM:DH+AESGCM"
-          ":ECDH+AES256:DH+AES256"
-          ":ECDH+AES128:DH+AES"
-          ":RSA+AESGCM:RSA+AES"
-          ":!aNULL:!MD5")
-      .openssl_options(
-          SSL_OP_SINGLE_ECDH_USE | SSL_OP_SINGLE_DH_USE
-          | SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1
-          | SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3);
-  }
   else
     {
-      LOG(warning) << "HTTP: not using HTTPS";
-    }
-
-  // Create client with options
-  Client client(options);
-  // TODO(unassigned): this top try block is specifically for Windows and ARMv8
-  // but is harmless for all platforms (see #453 and cpp-netlib/cpp-netlib#696)
-  try {
-    try {
-      // Create request
-      Request request(uri.string());  // A fully-qualified, completed URI
-      // Add required Java I2P defined user-agent
-      request << boost::network::header("User-Agent", "Wget/1.11.4");
-      // Are we requesting the same file?
-      if (uri.path() == GetPreviousPath()) {
-          LOG(debug) << "HTTP: Same URI already requested";
-          // Add ETag and Last-Modified headers if previously set
-          if (!GetPreviousETag().empty())
-            {
-              LOG(trace) << "HTTP: Setting 'If-None-Match' to : "
-                         << GetPreviousETag();
-              request << boost::network::header(
-                  "If-None-Match", GetPreviousETag());
-            }
-          if (!GetPreviousLastModified().empty())
-            {
-              LOG(trace) << "HTTP: Setting 'If-Modified-Since' to : "
-                         << GetPreviousLastModified();
-              request << boost::network::header(
-                  "If-Modified-Since", GetPreviousLastModified());
-            }
-      } else {
-        // Set path to test against for future download (if this is a single instance)
-        SetPath(uri.path());
-      }
-      // Create response object, send request and receive response
-      LOG(trace) << "HTTP: Request " << kovri::core::LogNetMessageToString(request);
-      Response response = client.get(request);
-      LOG(trace) << "HTTP: Response " << kovri::core::LogNetMessageToString(response);
-      // Test HTTP response status code
-      switch (response.status()) {
-        // New download or cached version does not match, so re-download
-        case http::basic_response<http::tags::http_server>::status_type::ok:
-          // Parse response headers for ETag and Last-Modified
-          for (auto const& header : response.headers()) {
-            if (header.first == "ETag") {
-              if (header.second != GetPreviousETag())
-                SetETag(header.second);  // Set new ETag
-            }
-            if (header.first == "Last-Modified") {
-              if (header.second != GetPreviousLastModified())
-                SetLastModified(header.second);  // Set new Last-Modified
-            }
-          }
-          // Save downloaded content
-          SetDownloadedContents(boost::network::http::body(response));
-          break;
-        // File requested is unchanged since previous download
-        case http::basic_response<http::tags::http_server>::status_type::not_modified:
-          LOG(info) << "HTTP: no new updates available from " << uri.host();
-          break;
-        // Useless response code
-        default:
-          LOG(warning) << "HTTP: response code: " << response.status();
-          return false;
-      }
-    } catch (const std::exception& ex) {
-      LOG(error) << "HTTP: unable to complete download: " << ex.what();
+      LOG(error) << "HTTP: not using HTTPS";
       return false;
-    } catch (const std::exception_ptr& ex) {
-      LOG(error) << "HTTP: caught exception_ptr, rethrowing exception";
-      std::rethrow_exception(ex);
     }
-  } catch (const boost::system::system_error& ex) {
-    LOG(error) << "HTTP: " << boost::diagnostic_information(ex);
-    return false;
-  }
   return true;
 }
 
@@ -231,13 +225,13 @@ bool HTTP::DownloadViaI2P()
   m_Request.clear();
   m_Response.clear();
   // Get URI
-  auto uri = GetURI();
+  const auto uri = GetURI();
   // Reference the only instantiated address book instance in the singleton client context
   auto& address_book = kovri::client::context.GetAddressBook();
   // For identity hash of URI host
   kovri::core::IdentHash ident;
   // Get URI host's ident hash then find its lease-set
-  if (address_book.CheckAddressIdentHashFound(uri.host(), ident)
+  if (address_book.CheckAddressIdentHashFound(uri.host().to_string(), ident)
       && address_book.GetSharedLocalDestination()) {
     std::condition_variable new_data_received;
     std::mutex new_data_received_mutex;
@@ -257,22 +251,20 @@ bool HTTP::DownloadViaI2P()
         //   In testing, even after integration, results vary dramatically.
         //   This could be a router issue or something amiss during the refactor.
         if (new_data_received.wait_for(
-                lock,
-                std::chrono::seconds(
-                    static_cast<std::uint8_t>(Timeout::Request)))
+                lock, std::chrono::seconds(core::GetType(Timeout::Request)))
             == std::cv_status::timeout)
           LOG(error) << "HTTP: lease-set request timeout expired";
       }
     // Test against requested lease-set
     if (!lease_set) {
-      LOG(error) << "HTTP: lease-set for address " << uri.host() << " not found";
+      LOG(error) << "HTTP: lease-set for address " << uri.host().to_string() << " not found";
     } else {
       PrepareI2PRequest();  // TODO(anonimal): remove after refactor
       // Send request
       auto stream =
         kovri::client::context.GetAddressBook().GetSharedLocalDestination()->CreateStream(
             lease_set,
-            std::stoi(uri.port()));
+            std::stoi(uri.port().to_string()));
       stream->Send(
           reinterpret_cast<const std::uint8_t *>(m_Request.str().c_str()),
           m_Request.str().length());
@@ -309,7 +301,7 @@ bool HTTP::DownloadViaI2P()
         m_Response.write(reinterpret_cast<char *>(buf.data()), len);
     }
   } else {
-    LOG(error) << "HTTP: can't resolve I2P address: " << uri.host();
+    LOG(error) << "HTTP: can't resolve I2P address: " << uri.host().to_string();
     return false;
   }
   return ProcessI2PResponse();  // TODO(anonimal): remove after refactor
@@ -318,10 +310,10 @@ bool HTTP::DownloadViaI2P()
 // TODO(anonimal): remove after refactor
 void HTTP::PrepareI2PRequest() {
   // Create header
-  auto uri = GetURI();
+  const auto uri = GetURI();
   std::string header =
-    "GET " + uri.path() + " HTTP/1.1\r\n" +
-    "Host: " + uri.host() + "\r\n" +
+    "GET " + uri.path().to_string() + " HTTP/1.1\r\n" +
+    "Host: " + uri.host().to_string() + "\r\n" +
     "Accept: */*\r\n" +
     "User-Agent: Wget/1.11.4\r\n" +
     "Connection: Close\r\n";
@@ -341,56 +333,67 @@ bool HTTP::ProcessI2PResponse() {
   std::uint16_t response_code = 0;
   m_Response >> http_version;
   m_Response >> response_code;
-  if (response_code ==
-		http::basic_response<http::tags::http_server>::status_type::ok) {
-    bool is_chunked = false;
-    std::string header, status_message;
-    std::getline(m_Response, status_message);
-    // Read response until end of header (new line)
-    while (std::getline(m_Response, header) && header != "\r") {
-      auto colon = header.find(':');
-      if (colon != std::string::npos) {
-        std::string field = header.substr(0, colon);
-        header.resize(header.length() - 1);  // delete \r
-        // We currently don't differentiate between strong or weak ETags
-        // We currently only care if an ETag is present
-        if (field == "ETag")
-          SetETag(header.substr(colon + 1));
-        else if (field == "Last-Modified")
-          SetLastModified(header.substr(colon + 1));
-        else if (field == "Transfer-Encoding")
-          is_chunked = !header.compare(colon + 1, std::string::npos, "chunked");
-      }
+  if (http::int_to_status(response_code) == http::status::ok)
+    {
+      bool is_chunked = false;
+      std::string header, status_message;
+      std::getline(m_Response, status_message);
+      // Read response until end of header (new line)
+      while (std::getline(m_Response, header) && header != "\r")
+        {
+          const auto colon = header.find(':');
+          if (colon != std::string::npos)
+            {
+              std::string field = header.substr(0, colon);
+              header.resize(header.length() - 1);  // delete \r
+              // We currently don't differentiate between strong or weak ETags
+              // We currently only care if an ETag is present
+              if (field == "ETag")
+                SetETag(header.substr(colon + 1));
+              else if (field == "Last-Modified")
+                SetLastModified(header.substr(colon + 1));
+              else if (field == "Transfer-Encoding")
+                is_chunked =
+                    !header.compare(colon + 1, std::string::npos, "chunked");
+            }
+        }
+      // Get content after header
+      std::stringstream content;
+      while (std::getline(m_Response, header))
+        {
+          // TODO(anonimal): this can be improved but since we
+          // won't need this after the refactor, it 'works' for now
+          const auto colon = header.find(':');
+          if (colon != std::string::npos)
+            continue;
+          else
+            content << header << std::endl;
+        }
+      // Test if response is chunked / save downloaded contents
+      if (!content.eof())
+        {
+          if (is_chunked)
+            {
+              std::stringstream merged;
+              MergeI2PChunkedResponse(content, merged);
+              SetDownloadedContents(merged.str());
+            }
+          else
+            {
+              SetDownloadedContents(content.str());
+            }
+        }
     }
-    // Get content after header
-    std::stringstream content;
-    while (std::getline(m_Response, header)) {
-      // TODO(anonimal): this can be improved but since we
-      // won't need this after the refactor, it 'works' for now
-      auto colon = header.find(':');
-      if (colon != std::string::npos)
-        continue;
-      else
-        content << header << std::endl;
+  else if (http::int_to_status(response_code) == http::status::not_modified)
+    {
+      LOG(info) << "HTTP: no new updates available from "
+                << GetURI().host().to_string();
     }
-    // Test if response is chunked / save downloaded contents
-    if (!content.eof()) {
-      if (is_chunked) {
-        std::stringstream merged;
-        MergeI2PChunkedResponse(content, merged);
-        SetDownloadedContents(merged.str());
-      } else {
-        SetDownloadedContents(content.str());
-      }
+  else
+    {
+      LOG(warning) << "HTTP: response code: " << response_code;
+      return false;
     }
-  } else if (response_code ==
-		http::basic_response<http::tags::http_server>::
-			status_type::not_modified) {
-    LOG(info) << "HTTP: no new updates available from " << GetURI().host();
-  } else {
-    LOG(warning) << "HTTP: response code: " << response_code;
-    return false;
-  }
   return true;
 }
 

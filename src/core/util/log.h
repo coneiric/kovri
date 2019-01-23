@@ -1,5 +1,5 @@
 /**                                                                                           //
- * Copyright (c) 2013-2017, The Kovri I2P Router Project                                      //
+ * Copyright (c) 2013-2018, The Kovri I2P Router Project                                      //
  *                                                                                            //
  * All rights reserved.                                                                       //
  *                                                                                            //
@@ -34,7 +34,9 @@
 #include <boost/log/sources/global_logger_storage.hpp>
 #include <boost/log/sources/severity_logger.hpp>
 #include <boost/log/trivial.hpp>
-#include <boost/network/include/http/client.hpp>
+#include <boost/beast/core.hpp>
+#include <boost/beast/http.hpp>
+#include <boost/beast/version.hpp>
 #include <boost/program_options.hpp>
 #include <sstream>
 #include <string>
@@ -60,58 +62,48 @@ namespace core
 void SetupLogging(
     const boost::program_options::variables_map& parsed_kovri_config);
 
-/// @brief Log source and destination of a network request or response
-/// @param boost::network::http::client:: request or response
-/// @return human readable string
-template <typename Type>
-std::string LogNetEndpointsToString(const Type& req)
-{
-  std::stringstream ss;
-  ss << "Source : \""
-     << static_cast<std::string>(boost::network::http::source(req))
-     << "\" Dest : \""
-     << static_cast<std::string>(boost::network::http::destination(req))
-     << "\"";
-  return ss.str();
-}
-
 /// @brief Log headers of a network request or response
-/// @param boost::network::http::client:: request or response
+/// @param http_message HTTP request or response
 /// @return human readable string
 template <typename Type>
-std::string LogNetHeaderToString(const Type& req)
+std::string LogNetHeaderToString(const Type& http_message)
 {
   std::stringstream ss;
   ss << "Headers : ";
-  for (auto const& header : req.headers())
-    ss << "\"" << header.first << "\"  : \"" << header.second << "\" | ";
+  auto const headers = http_message.base();
+  for (auto header = headers.begin(); header != headers.end(); ++header)
+    {
+      ss << "\"" << header->name_string() << "\"  : \"" << header->value()
+         << "\" | ";
+    }
   return ss.str();
 }
 
 /// @brief Log body of a network request or response
-/// @param boost::network::http::client:: request or response
+/// @param http_message HTTP request or response
 /// @return human readable string
 template <typename Type>
-std::string LogNetBodyToString(const Type& req)
+std::string LogNetBodyToString(const Type& http_message)
 {
   std::stringstream ss;
-  std::string body(static_cast<std::string>(boost::network::http::body(req)));
+  std::stringstream os;
+  os << boost::beast::buffers(http_message.body().data());
   ss << "Body : "
      << kovri::core::GetFormattedHex(
-            reinterpret_cast<const uint8_t*>(body.data()), body.length());
+            reinterpret_cast<const uint8_t*>(os.str().data()),
+            os.str().length());
   return ss.str();
 }
 
 /// @brief Log entire message (endpoints + headers + body)
-/// @param boost::network::http::client:: request or response
+/// @param http_message HTTP request or response
 /// @return human readable string
 template <typename Type>
-std::string LogNetMessageToString(const Type& req)
+std::string LogNetMessageToString(const Type& http_message)
 {
   std::stringstream ss;
-  ss << LogNetEndpointsToString(req) << std::endl
-     << LogNetHeaderToString(req) << std::endl
-     << LogNetBodyToString(req);
+  ss << LogNetHeaderToString(http_message) << std::endl
+     << LogNetBodyToString(http_message);
   return ss.str();
 }
 

@@ -1,5 +1,5 @@
 /**                                                                                           //
- * Copyright (c) 2013-2017, The Kovri I2P Router Project                                      //
+ * Copyright (c) 2013-2018, The Kovri I2P Router Project                                      //
  *                                                                                            //
  * All rights reserved.                                                                       //
  *                                                                                            //
@@ -33,9 +33,14 @@
 #ifndef SRC_CLIENT_UTIL_HTTP_H_
 #define SRC_CLIENT_UTIL_HTTP_H_
 
-// cpp-netlib
-#include <boost/network/include/http/client.hpp>
-#include <boost/network/uri.hpp>
+// beast
+#include <boost/beast/core.hpp>
+#include <boost/beast/http.hpp>
+#include <boost/beast/version.hpp>
+#include <boost/asio/connect.hpp>
+#include <boost/asio/ip/tcp.hpp>
+#include <boost/asio/ssl/error.hpp>
+#include <boost/asio/ssl/stream.hpp>
 
 #include <cstdint>
 #include <fstream>
@@ -46,6 +51,7 @@
 #include <string>
 
 #include "client/reseed.h"
+#include "client/util/uri/parser.h"
 #include "core/util/log.h"
 
 namespace kovri {
@@ -53,7 +59,6 @@ namespace client {
 
 /// @enum Timeout
 /// @brief Constants used for HTTP timeout lengths when downloading
-/// @notes Scoped to prevent namespace pollution (otherwise, purely stylistic)
 enum struct Timeout : std::uint8_t {
   // Seconds
   Request = 45,  // Java I2P defined
@@ -152,8 +157,12 @@ class HTTP : public HTTPStorage {
   HTTP() {}  // for HTTPProxy and tests
   ~HTTP() {}
 
-  HTTP(const std::string& uri) : m_URI(uri)
+  HTTP(const std::string& uri)
   {
+    URI::ParseURL(uri, m_URI, m_URIError);
+    if (m_URIError)
+      throw std::invalid_argument(std::string(__func__) + ": invalid URI");
+
     LOG(debug) << "HTTP: constructor URI " << uri;
   }
 
@@ -162,20 +171,27 @@ class HTTP : public HTTPStorage {
   void SetURI(const std::string& uri)
   {
     LOG(debug) << "HTTP: Set URI " << uri;
+    // Reset URI error
+    m_URIError.assign(0, m_URIError.category());
     // Remove existing URI if set
-    if (!m_URI.string().empty()) {
-      boost::network::uri::uri new_uri;
-      m_URI.swap(new_uri);
+    if (!m_URI.uri().empty()) {
+      m_URI.clear();
+      URI::ParseURL(uri, m_URI, m_URIError);
     }
-    // Set new URI
-    m_URI.append(uri);
+    else
+      URI::ParseURL(uri, m_URI, m_URIError);  // Set new URI
   }
 
   /// @brief Get initialized URI
   /// @return cpp-netlib URI object
-  boost::network::uri::uri GetURI() const
+  URIBuffer GetURI() const
   {
     return m_URI;
+  }
+
+  bool ValidURI() const
+  {
+    return !m_URIError;
   }
 
   /// @brief Tests if TLD is I2P
@@ -209,29 +225,13 @@ class HTTP : public HTTPStorage {
   /// @notes Used for address book and for future in-net autoupdates
   bool DownloadViaI2P();
 
- private:
   /// @var m_URI
-  /// @brief cpp-netlib URI instance
-  boost::network::uri::uri m_URI;
+  /// @brief URI instance
+  URIBuffer m_URI;
 
-  // TODO(anonimal): consider removing typedefs after refactor
-  // TODO(anonimal): remove the following notes after refactor
-
-  /// @brief HTTP client object
-  /// @notes Currently only applies to clearnet download
-  typedef boost::network::http::client Client;
-
-  /// @brief HTTP client options object (timeout, SNI, etc.)
-  /// @notes Currently only applies to clearnet download
-  typedef boost::network::http::client::options Options;
-
-  /// @brief HTTP client request object (header, etc.)
-  /// @notes Currently only applies to clearnet download
-  typedef boost::network::http::client::request Request;
-
-  /// @brief HTTP client response object (body, status, etc.)
-  /// @notes Currently only applies to clearnet download
-  typedef boost::network::http::client::response Response;
+  /// @var m_URIError
+  /// @brief URI error code
+  boost::system::error_code m_URIError;
 
  public:
   // TODO(anonimal): remove after refactor

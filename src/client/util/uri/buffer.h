@@ -1,5 +1,6 @@
 /**                                                                                           //
- * Copyright (c) 2013-2017, The Kovri I2P Router Project                                      //
+ * Copyright (c) 2015-2018, The Kovri I2P Router Project                                      //
+ * Copyright (c) 2018 oneiric (oneiric at i2pmail dot org)                                    //
  *                                                                                            //
  * All rights reserved.                                                                       //
  *                                                                                            //
@@ -26,29 +27,75 @@
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,          //
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF    //
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.               //
- *                                                                                            //
- * Parts of the project are originally copyright (c) 2013-2015 The PurpleI2P Project          //
  */
 
-#include <boost/test/unit_test.hpp>
+#ifndef KOVRI_CLIENT_URI_BUFFER_H_
+#define KOVRI_CLIENT_URI_BUFFER_H_
 
-#include "client/util/http.h"
+#include <boost/beast/core/string.hpp>
 
-BOOST_AUTO_TEST_SUITE(HTTPUtilityTests)
+#include "client/util/uri/error.h"
+#include "client/util/uri/parts.h"
 
-kovri::client::HTTP http;
+#include <vector>
 
-BOOST_AUTO_TEST_CASE(UriParse) {
-  // Note: more unit-tests in util/uri/parser.cc
-  // We simply test our implementation here.
-  http.SetURI("https://domain.org:8443/path/file.type");
-  BOOST_CHECK(http.ValidURI() && !http.HostIsI2P());
+namespace kovri
+{
+namespace client
+{
+class URIBuffer : public Parts
+{
+  std::vector<char> data_;
 
-  http.SetURI("3;axc807uasdfh123m,nafsdklfj;;klj0a9u01q3");
-  BOOST_CHECK(!http.ValidURI());
+public:
+  using const_iterator = std::vector<char>::const_iterator;
+  using value_type = std::vector<char>::value_type;
+  using size_type = std::vector<char>::size_type;
 
-  http.SetURI("http://username:password@udhdrtrcetjm5sxzskjyr5ztpeszydbh4dpl3pl4utgqqw2v4jna.b32.i2p/hosts.txt");
-  BOOST_CHECK(http.ValidURI() && http.HostIsI2P());
-}
+  std::vector<char> &data() { return data_; }
 
-BOOST_AUTO_TEST_SUITE_END()
+  value_type back() const noexcept { return data_.back(); }
+
+  const_iterator begin() const noexcept { return data_.begin(); }
+
+  const_iterator end() const noexcept { return data_.end(); }
+
+  void push_back(char c) { data_.push_back(c); }
+
+  size_type size() const noexcept { return data_.size(); }
+
+  std::string PartFrom(const_iterator first, const_iterator last) {
+    BOOST_ASSERT(first >= data_.begin() && first < data_.end());
+    BOOST_ASSERT(last > data_.begin() && last <= data_.end());
+    BOOST_ASSERT(first < last);
+
+    return {first, last};
+  }
+
+  boost::string_view uri() const noexcept { return {data_.data(), data_.size()}; }
+
+  boost::string_view update_uri()
+  {
+    const std::string auth_start = scheme_ == "file" ? ":///" : "://";
+    const boost::string_view new_uri =
+        scheme_ + auth_start
+        + (username_.empty() ? "" : user_info().to_string() + "@") + host_
+        + (port_.empty() ? "" : ":" + port_) + path_
+        + (query_.empty() ? "" : "?" + query_)
+        + (fragment().empty() ? "" : "#" + fragment_);
+    data_.clear();
+    data_.insert(data_.begin(), new_uri.begin(), new_uri.end());
+    return new_uri;
+  }
+
+  void clear()
+  {
+    data_.clear();
+    reset();
+  }
+};
+
+} // namespace client
+} // namespace kovri
+
+#endif  // KOVRI_CLIENT_URI_BUFFER_H_
