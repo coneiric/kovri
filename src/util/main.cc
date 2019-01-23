@@ -37,9 +37,6 @@
 #ifdef WITH_CRYPTOPP
 #include "util/cpuid.h"
 #endif // WITH_CRYPTOPP
-#ifdef WITH_FUZZ_TESTS
-#include "util/fuzz.h"
-#endif  // WITH_FUZZ_TESTS
 #include "util/i2pcontrol.h"
 #include "util/routerinfo.h"
 #include "util/su3file.h"
@@ -96,11 +93,6 @@ int main(int argc, const char* argv[])
       CpuidCommand cpuid_cmd;
       list_cmd[cpuid_cmd.GetName()] = &cpuid_cmd;
 #endif // WITH_CRYPTOPP
-
-#ifdef WITH_FUZZ_TESTS
-      FuzzCommand fuzz_cmd;
-      list_cmd[fuzz_cmd.GetName()] = &fuzz_cmd;
-#endif  // WITH_FUZZ_TESTS
 
       bpo::options_description general_desc("General options");
       // See src/app/config.cc for log options

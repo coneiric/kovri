@@ -233,6 +233,8 @@ void RouterInfo::ParseRouterInfo(const std::string& router_info)
       // Get the given size of remaining chunk
       stream.Read(&given_size, sizeof(given_size));
       boost::endian::big_to_native_inplace(given_size);
+      if (stream.Str().size() + given_size > Size::MaxBuffer)
+        throw std::length_error("RouterInfo: given address size is too large");
 
       // Reset remaining size
       remaining_size = 0;
@@ -397,6 +399,8 @@ void RouterInfo::ParseRouterInfo(const std::string& router_info)
   // Read remaining options
   stream.Read(&given_size, sizeof(given_size));
   boost::endian::big_to_native_inplace(given_size);
+  if (stream.Str().size() + given_size > Size::MaxBuffer)
+    throw std::length_error("RouterInfo: given options size is too large");
 
   // Reset remaining size
   remaining_size = 0;

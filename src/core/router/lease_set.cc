@@ -55,9 +55,8 @@ LeaseSet::LeaseSet(
   ReadFromBuffer();
 }
 
-LeaseSet::LeaseSet(
-    const kovri::core::TunnelPool& pool)
-    : m_IsValid(true) {
+LeaseSet::LeaseSet(const kovri::core::TunnelPool& pool) : m_IsValid(true)
+{
   // header
   const kovri::core::LocalDestination* local_destination = pool.GetLocalDestination();
   if (!local_destination) {
@@ -67,15 +66,14 @@ LeaseSet::LeaseSet(
     LOG(error) << "LeaseSet: destination for local LeaseSet doesn't exist";
     return;
   }
-  m_Buffer = std::make_unique<std::uint8_t[]>(MAX_LS_BUFFER_SIZE);
+  m_Buffer = std::make_unique<std::uint8_t[]>(LeaseSetSize::MaxBuffer);
   m_BufferLen = local_destination->GetIdentity().ToBuffer(
-      m_Buffer.get(),
-      MAX_LS_BUFFER_SIZE);
+      m_Buffer.get(), LeaseSetSize::MaxBuffer);
   memcpy(
       m_Buffer.get() + m_BufferLen,
       local_destination->GetEncryptionPublicKey(),
-      256);
-  m_BufferLen += 256;
+      crypto::PkLen::ElGamal);
+  m_BufferLen += crypto::PkLen::ElGamal;
   auto signing_key_len = local_destination->GetIdentity().GetSigningPublicKeyLen();
   memset(m_Buffer.get() + m_BufferLen, 0, signing_key_len);
   m_BufferLen += signing_key_len;
@@ -83,22 +81,26 @@ LeaseSet::LeaseSet(
   m_Buffer[m_BufferLen] = tunnels.size();  // num leases
   m_BufferLen++;
   // leases
-  for (auto it : tunnels) {
-    memcpy(m_Buffer.get() + m_BufferLen, it->GetNextIdentHash(), 32);
-    m_BufferLen += 32;  // gateway id
-    core::OutputByteStream::Write<std::uint32_t>(
-        m_Buffer.get() + m_BufferLen, it->GetNextTunnelID());
-    m_BufferLen += 4;  // tunnel id
-    std::uint64_t ts =
-      it->GetCreationTime() +
-      kovri::core::TUNNEL_EXPIRATION_TIMEOUT -
-      kovri::core::TUNNEL_EXPIRATION_THRESHOLD;  // 1 minute before expiration
-    ts *= 1000;  // in milliseconds
-    ts += kovri::core::RandInRange32(0, 5);  // + random milliseconds
-    core::OutputByteStream::Write<std::uint64_t>(
-        m_Buffer.get() + m_BufferLen, ts);
-    m_BufferLen += 8;  // end date
-  }
+  for (auto it : tunnels)
+    {
+      memcpy(
+          m_Buffer.get() + m_BufferLen,
+          it->GetNextIdentHash(),
+          LeaseSetSize::GatewayID);
+      m_BufferLen += LeaseSetSize::GatewayID;
+      core::OutputByteStream::Write<std::uint32_t>(
+          m_Buffer.get() + m_BufferLen, it->GetNextTunnelID());
+      m_BufferLen += LeaseSetSize::TunnelID;
+      // 1 minute before expiration
+      std::uint64_t ts = it->GetCreationTime()
+                         + kovri::core::TUNNEL_EXPIRATION_TIMEOUT
+                         - kovri::core::TUNNEL_EXPIRATION_THRESHOLD;
+      ts *= 1000;  // in milliseconds
+      ts += kovri::core::RandInRange32(0, 5);  // + random milliseconds
+      core::OutputByteStream::Write<std::uint64_t>(
+          m_Buffer.get() + m_BufferLen, ts);
+      m_BufferLen += LeaseSetSize::EndDate;
+    }
   // signature
   local_destination->Sign(
       m_Buffer.get(),
@@ -108,6 +110,68 @@ LeaseSet::LeaseSet(
   LOG(debug)
     << "LeaseSet: local LeaseSet of " << tunnels.size() << " leases created";
   ReadFromBuffer();
+}
+
+LeaseSet::LeaseSet(
+    const core::LocalDestination& local,
+    const std::vector<Lease>& leases)
+    : m_Buffer(new std::uint8_t[LeaseSetSize::MaxBuffer])
+{
+    // Check if leases exceed the limit, see spec
+    if (leases.size() > LeaseSetSize::MaxLeases)
+      throw std::invalid_argument(std::string(__func__) + ": too many leases");
+
+    // Prepare the LeaseSet
+    m_Leases = leases;
+    m_Identity = local.GetIdentity();
+
+    // Copy destination identity to buffer
+    core::OutputByteStream stream(m_Buffer.get(), LeaseSetSize::MaxBuffer);
+    stream.SkipBytes(m_Identity.GetFullLen());
+    m_Identity.ToBuffer(m_Buffer.get(), LeaseSetSize::MaxBuffer);
+
+    const std::uint8_t* crypto_pubkey = local.GetEncryptionPublicKey();
+
+    // Copy destination encryption public key to data member
+    std::copy(
+        crypto_pubkey,
+        crypto_pubkey + crypto::PkLen::ElGamal,
+        m_EncryptionKey.data());
+
+    // Copy destination encryption public key to buffer
+    stream.WriteData(m_EncryptionKey.data(), m_EncryptionKey.size());
+
+    // Zero-out unused signing key
+    const std::vector<std::uint8_t> empty_sign_key(
+        m_Identity.GetSigningPublicKeyLen());
+    stream.WriteData(empty_sign_key.data(), empty_sign_key.size());
+
+    // Set the number of leases
+    stream.Write<std::uint8_t>(m_Leases.size());
+
+    for (const auto lease : m_Leases)
+      {
+        // Copy the lease's gateway id to the buffer
+        stream.WriteData(lease.tunnel_gateway(), LeaseSetSize::GatewayID);
+
+        // Copy the lease's tunnel id to the buffer
+        stream.Write<std::uint32_t>(lease.tunnel_ID);
+
+        // Copy the lease's expiration date to the buffer
+        stream.Write<std::uint64_t>(lease.end_date);
+      }
+
+    // Sign the LeaseSet
+    const std::size_t bytes_written = stream.size() - stream.gcount();
+    std::uint8_t* signature = stream.data() + bytes_written;
+    local.Sign(stream.data(), bytes_written, signature);
+
+    // Verify LeaseSet signature
+    if (!m_Identity.Verify(stream.data(), bytes_written, signature))
+      throw std::runtime_error(std::string(__func__) + ": invalid signature");
+
+    m_BufferLen = bytes_written + m_Identity.GetSignatureLen();
+    m_IsValid = true;
 }
 
 void LeaseSet::Update(
@@ -122,39 +186,87 @@ void LeaseSet::Update(
   ReadFromBuffer();
 }
 
-void LeaseSet::ReadFromBuffer() {
+void LeaseSet::ReadFromBuffer()
+{
+  const auto set_invalid = [this](const char* err_msg){
+    LOG(error) << "LeaseSet: " << err_msg;
+    m_IsValid = false;
+  };
   std::size_t size = m_Identity.FromBuffer(m_Buffer.get(), m_BufferLen);
-  memcpy(m_EncryptionKey.data(), m_Buffer.get() + size, 256);
-  size += 256;  // encryption key
-  size += m_Identity.GetSigningPublicKeyLen();  // unused signing key
-  std::uint8_t num = m_Buffer[size];
+  if (!size)
+    {
+      set_invalid("invalid identity");
+      return;
+    }
+  const auto sign_key_len = m_Identity.GetSigningPublicKeyLen();
+  const auto metadata_len =
+      crypto::PkLen::ElGamal + sign_key_len + LeaseSetSize::NumLeaseLen;
+  if (size + metadata_len > m_BufferLen)
+    {
+      set_invalid("metadata exceeds remaining buffer length");
+      return;
+    }
+  memcpy(m_EncryptionKey.data(), m_Buffer.get() + size, crypto::PkLen::ElGamal);
+  size += crypto::PkLen::ElGamal;  // encryption key
+  size += sign_key_len;  // unused signing key
+  const std::uint8_t num = m_Buffer[size];
   size++;  // num
   LOG(debug) << "LeaseSet: num=" << static_cast<int>(num);
-  if (!num)
-    m_IsValid = false;
-  // process leases
-  const std::uint8_t* leases = m_Buffer.get() + size;
-  for (int i = 0; i < num; i++) {
-    Lease lease;
-    lease.tunnel_gateway = leases;
-    leases += 32;  // gateway
-    lease.tunnel_ID = core::InputByteStream::Read<std::uint32_t>(leases);
-    leases += 4;  // tunnel ID
-    lease.end_date = core::InputByteStream::Read<std::uint64_t>(leases);
-    leases += 8;  // end date
-    m_Leases.push_back(lease);
-    // check if lease's gateway is in our netDb
-    if (!netdb.FindRouter(lease.tunnel_gateway)) {
-      // if not found request it
-      LOG(debug) << "LeaseSet: lease's tunnel gateway not found, requesting";
-      netdb.RequestDestination(lease.tunnel_gateway);
+  const std::size_t sig_len = m_Identity.GetSignatureLen();
+  const std::uint16_t leases_len = num * LeaseSetSize::LeaseSize;
+  if (size + leases_len + sig_len > m_BufferLen)
+    {
+      set_invalid("signature exceeds remaining buffer length");
+      return;
     }
-  }
+  if (!num)
+    {
+      LOG(debug) << "LeaseSet: no leases";
+    }
+  else if (num > LeaseSetSize::MaxLeases)
+    {
+      set_invalid("lease number exceeds the specified maximum");
+      return;
+    }
+  else
+    {
+      if (size + leases_len > m_BufferLen)
+        {
+          set_invalid("leases exceed remaining buffer length");
+          return;
+        }
+      if ((m_BufferLen - size - sig_len) % LeaseSetSize::LeaseSize != 0)
+        {
+          set_invalid("number of leases is not a whole number");
+          return;
+        }
+      // process leases
+      const std::uint8_t* leases = m_Buffer.get() + size;
+      for (std::uint8_t i = 0; i < num; ++i)
+        {
+          Lease lease;
+          lease.tunnel_gateway = leases;
+          leases += LeaseSetSize::GatewayID;
+          lease.tunnel_ID = core::InputByteStream::Read<std::uint32_t>(leases);
+          leases += LeaseSetSize::TunnelID;
+          lease.end_date = core::InputByteStream::Read<std::uint64_t>(leases);
+          leases += LeaseSetSize::EndDate;
+          m_Leases.push_back(lease);
+          // check if lease's gateway is in our netDb
+          if (!netdb.FindRouter(lease.tunnel_gateway))
+            {
+              // if not found request it
+              LOG(debug)
+                  << "LeaseSet: lease's tunnel gateway not found, requesting";
+              netdb.RequestDestination(lease.tunnel_gateway);
+            }
+        }
+      size += leases_len;
+    }
   // verify
-  if (!m_Identity.Verify(m_Buffer.get(), leases - m_Buffer.get(), leases)) {
-    LOG(warning) << "LeaseSet: verification failed";
-    m_IsValid = false;
-  }
+  const std::uint8_t* signature = m_Buffer.get() + size;
+  if (!m_Identity.Verify(m_Buffer.get(), size, signature))
+    set_invalid("verification failed");
 }
 
 const std::vector<Lease> LeaseSet::GetNonExpiredLeases(

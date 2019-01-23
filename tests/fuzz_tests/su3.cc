@@ -1,5 +1,5 @@
 /**                                                                                           //
- * Copyright (c) 2015-2017, The Kovri I2P Router Project                                      //
+ * Copyright (c) 2015-2018, The Kovri I2P Router Project                                      //
  *                                                                                            //
  * All rights reserved.                                                                       //
  *                                                                                            //
@@ -26,13 +26,12 @@
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,          //
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF    //
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.               //
- *                                                                                            //
  */
 
 #include "tests/fuzz_tests/su3.h"
+#include "core/router/identity.h"
 #include <stddef.h>
 #include <stdint.h>
-#include "client/reseed.h"
 
 namespace kovri
 {
@@ -51,6 +50,9 @@ int SU3::Initialize(int*, char***)
 
 int SU3::Impl(const uint8_t* data, size_t size)
 {
+  if (!data || !size)
+    return 0;
+
   try
     {
       std::string su3_str(data, data + size);

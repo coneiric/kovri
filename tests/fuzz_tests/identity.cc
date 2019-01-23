@@ -1,5 +1,5 @@
 /**                                                                                           //
- * Copyright (c) 2015-2017, The Kovri I2P Router Project                                      //
+ * Copyright (c) 2015-2018, The Kovri I2P Router Project                                      //
  *                                                                                            //
  * All rights reserved.                                                                       //
  *                                                                                            //
@@ -28,33 +28,44 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.               //
  */
 
-#ifndef SRC_UTIL_FUZZ_H_
-#define SRC_UTIL_FUZZ_H_
+#include "tests/fuzz_tests/identity.h"
+#include "core/router/identity.h"
 
-#include <fstream>
-#include <iostream>
-#include <string>
-#include <vector>
-#include "util/command.h"
-
-/**
- * @class FuzzCommand
- * @brief class for command fuzz
- */
-
-class FuzzCommand : public Command
+namespace kovri
 {
- public:
-  FuzzCommand();
-  void PrintUsage(const std::string& cmd_name) const;
-  bool Impl(const std::string& path, const std::vector<std::string>& args);
-  std::string GetName(void) const
-  {
-    return "fuzz";
-  }
+namespace fuzz
+{
+int IdentityEx::Initialize(int*, char***)
+{
+  // nothing to do
+  return 0;
+}
 
- private:
-  void PrintAvailableTargets() const;
-};
+int IdentityEx::Impl(const uint8_t* data, size_t size)
+{
+  if (!data || size < kovri::core::DEFAULT_IDENTITY_SIZE)
+    return 0;
 
-#endif  // SRC_UTIL_FUZZ_H_
+  try
+    {
+      kovri::core::IdentityEx id;
+      size = id.FromBuffer(data, size);
+      if (size)
+        {
+          auto new_buf = std::make_unique<std::uint8_t[]>(size);
+          id.ToBuffer(new_buf.get(), size);
+        }
+    }
+  catch (...)
+    {
+      std::string const err_msg{"Fuzzer: IdentityEx: " + std::string(__func__)};
+      kovri::core::Exception ex;
+      ex.Dispatch(err_msg.c_str());
+      return 0;
+    }
+  return 0;
+}
+
+}  // namespace fuzz
+}  // namespace kovri
+

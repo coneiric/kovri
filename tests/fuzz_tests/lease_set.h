@@ -1,5 +1,5 @@
 /**                                                                                           //
- * Copyright (c) 2015-2017, The Kovri I2P Router Project                                      //
+ * Copyright (c) 2015-2018, The Kovri I2P Router Project                                      //
  *                                                                                            //
  * All rights reserved.                                                                       //
  *                                                                                            //
@@ -32,6 +32,7 @@
 #define TESTS_FUZZ_TESTS_LEASE_SET_H_
 
 #include <memory>
+#include "client/reseed.h"
 #include "core/router/lease_set.h"
 #include "tests/fuzz_tests/target.h"
 
@@ -40,15 +41,14 @@ namespace kovri
 namespace fuzz
 {
 /**
- * @class RouterInfo
- * @brief Specialization of FuzzTarget for routerinfo
+ * @class LeaseSet
+ * @brief Specialization of FuzzTarget for leaseset
  */
-
 class LeaseSet : public FuzzTarget
 {
  public:
-  virtual int Initialize(int* argc, char*** argv);
-  virtual int Impl(const uint8_t* data, size_t size);
+  int Initialize(int* argc, char*** argv);
+  int Impl(const uint8_t* data, size_t size);
 
  private:
   std::unique_ptr<kovri::core::LeaseSet> m_LeaseSet;

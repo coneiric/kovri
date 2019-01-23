@@ -481,14 +481,14 @@ void IdentityEx::CreateVerifier() const  {
       m_Verifier = std::make_unique<kovri::core::DSAVerifier>(m_StandardIdentity.signing_key);
     break;
     case SIGNING_KEY_TYPE_ECDSA_SHA256_P256: {
-      std::size_t padding = 128 - kovri::core::ECDSAP256_KEY_LENGTH;  // 64 = 128 - 64
+      constexpr std::size_t padding = 128 - kovri::core::ECDSAP256_KEY_LENGTH;  // 64 = 128 - 64
       m_Verifier =
         std::make_unique<kovri::core::ECDSAP256Verifier>(
             m_StandardIdentity.signing_key + padding);
       break;
     }
     case SIGNING_KEY_TYPE_ECDSA_SHA384_P384: {
-      std::size_t padding = 128 - kovri::core::ECDSAP384_KEY_LENGTH;  // 32 = 128 - 96
+      constexpr std::size_t padding = 128 - kovri::core::ECDSAP384_KEY_LENGTH;  // 32 = 128 - 96
       m_Verifier =
         std::make_unique<kovri::core::ECDSAP384Verifier>(
             m_StandardIdentity.signing_key + padding);
@@ -497,37 +497,65 @@ void IdentityEx::CreateVerifier() const  {
     case SIGNING_KEY_TYPE_ECDSA_SHA512_P521: {
       std::uint8_t signing_key[kovri::core::ECDSAP521_KEY_LENGTH];
       memcpy(signing_key, m_StandardIdentity.signing_key, 128);
-      std::size_t excess_len = kovri::core::ECDSAP521_KEY_LENGTH - 128;  // 4 = 132- 128
-      memcpy(signing_key + 128, m_ExtendedBuffer.get() + 4, excess_len);  // right after signing and crypto key types
+      constexpr std::size_t excess_len = kovri::core::ECDSAP521_KEY_LENGTH - 128;  // 4 = 132- 128
+      constexpr std::uint8_t offset = 4;
+      if (!m_ExtendedBuffer || m_ExtendedLen < excess_len + offset)
+        {
+          LOG(error) << "IdentityEx: " << __func__
+                     << ": invalid extended buffer";
+          break;
+        }
+      memcpy(signing_key + 128, m_ExtendedBuffer.get() + offset, excess_len);  // right after signing and crypto key types
       m_Verifier = std::make_unique<kovri::core::ECDSAP521Verifier>(signing_key);
       break;
     }
     case SIGNING_KEY_TYPE_RSA_SHA256_2048: {
       std::uint8_t signing_key[kovri::core::RSASHA2562048_KEY_LENGTH];
       memcpy(signing_key, m_StandardIdentity.signing_key, 128);
-      std::size_t excess_len = kovri::core::RSASHA2562048_KEY_LENGTH - 128;  // 128 = 256- 128
-      memcpy(signing_key + 128, m_ExtendedBuffer.get() + 4, excess_len);
+      constexpr std::size_t excess_len = kovri::core::RSASHA2562048_KEY_LENGTH - 128;  // 128 = 256- 128
+      constexpr std::uint8_t offset = 4;
+      if (!m_ExtendedBuffer || m_ExtendedLen < excess_len + offset)
+        {
+          LOG(error) << "IdentityEx: " << __func__
+                     << ": invalid extended buffer";
+          break;
+        }
+      memcpy(signing_key + 128, m_ExtendedBuffer.get() + offset, excess_len);
       m_Verifier = std::make_unique<kovri::core::RSASHA2562048Verifier>(signing_key);
       break;
     }
     case SIGNING_KEY_TYPE_RSA_SHA384_3072: {
       std::uint8_t signing_key[kovri::core::RSASHA3843072_KEY_LENGTH];
       memcpy(signing_key, m_StandardIdentity.signing_key, 128);
-      std::size_t excess_len = kovri::core::RSASHA3843072_KEY_LENGTH - 128;  // 256 = 384- 128
-      memcpy(signing_key + 128, m_ExtendedBuffer.get() + 4, excess_len);
+      constexpr std::size_t excess_len = kovri::core::RSASHA3843072_KEY_LENGTH - 128;  // 256 = 384- 128
+      constexpr std::uint8_t offset = 4;
+      if (!m_ExtendedBuffer || m_ExtendedLen < excess_len + offset)
+        {
+          LOG(error) << "IdentityEx: " << __func__
+                     << ": invalid extended buffer";
+          break;
+        }
+      memcpy(signing_key + 128, m_ExtendedBuffer.get() + offset, excess_len);
       m_Verifier = std::make_unique<kovri::core::RSASHA3843072Verifier>(signing_key);
       break;
     }
     case SIGNING_KEY_TYPE_RSA_SHA512_4096: {
       std::uint8_t signing_key[kovri::core::RSASHA5124096_KEY_LENGTH];
       memcpy(signing_key, m_StandardIdentity.signing_key, 128);
-      std::size_t excess_len = kovri::core::RSASHA5124096_KEY_LENGTH - 128;  // 384 = 512- 128
-      memcpy(signing_key + 128, m_ExtendedBuffer.get() + 4, excess_len);
+      constexpr std::size_t excess_len = kovri::core::RSASHA5124096_KEY_LENGTH - 128;  // 384 = 512- 128
+      constexpr std::uint8_t offset = 4;
+      if (!m_ExtendedBuffer || m_ExtendedLen < excess_len + offset)
+        {
+          LOG(error) << "IdentityEx: " << __func__
+                     << ": invalid extended buffer";
+          break;
+        }
+      memcpy(signing_key + 128, m_ExtendedBuffer.get() + offset, excess_len);
       m_Verifier = std::make_unique<kovri::core::RSASHA5124096Verifier>(signing_key);
       break;
     }
     case SIGNING_KEY_TYPE_EDDSA_SHA512_ED25519: {
-      std::size_t padding = 128 - crypto::PkLen::Ed25519;  // 96 = 128 - 32
+      constexpr std::size_t padding = 128 - crypto::PkLen::Ed25519;  // 96 = 128 - 32
       m_Verifier = std::make_unique<kovri::core::Ed25519Verifier>(
           m_StandardIdentity.signing_key + padding);
       break;

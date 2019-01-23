@@ -1,5 +1,5 @@
 /**                                                                                           //
- * Copyright (c) 2015-2017, The Kovri I2P Router Project                                      //
+ * Copyright (c) 2015-2018, The Kovri I2P Router Project                                      //
  *                                                                                            //
  * All rights reserved.                                                                       //
  *                                                                                            //
@@ -43,6 +43,9 @@ int LeaseSet::Initialize(int*, char***)
 
 int LeaseSet::Impl(const uint8_t* data, size_t size)
 {
+  if (!data || size < kovri::core::DEFAULT_IDENTITY_SIZE)
+    return 0;
+
   try
     {
       if (!m_LeaseSet)

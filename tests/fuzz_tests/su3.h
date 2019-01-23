@@ -34,6 +34,7 @@
 #include <core/crypto/util/x509.h>
 #include <map>
 #include <string>
+#include "client/reseed.h"
 #include "tests/fuzz_tests/target.h"
 
 namespace kovri
@@ -48,8 +49,8 @@ namespace fuzz
 class SU3 : public FuzzTarget
 {
  public:
-  virtual int Initialize(int* argc, char*** argv);
-  virtual int Impl(const uint8_t* data, size_t size);
+  int Initialize(int* argc, char*** argv);
+  int Impl(const uint8_t* data, size_t size);
 
  private:
   std::map<std::string, kovri::core::PublicKey> m_Keys;

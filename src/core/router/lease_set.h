@@ -47,6 +47,24 @@ namespace core {
 class TunnelPool;
 
 struct Lease {
+  Lease() : tunnel_gateway(), tunnel_ID(0), end_date(0) {}
+
+  /// @brief Conversion-ctor to create an initialized Lease
+  /// @param gateway_id IdentHash of the Lease's gateway
+  /// @param tunnel_id Tunnel ID for the Lease
+  /// @param end_date Expiration time for the Lease
+  /// @details Default Lease expiration is ten minutes after creation, see spec
+  Lease(
+      const core::IdentHash& gateway_id,
+      const std::uint32_t tunnel_id,
+      const std::uint64_t end_date = (std::chrono::steady_clock::now()
+                                      + std::chrono::minutes(10))
+                                         .time_since_epoch()
+                                         .count())
+      : tunnel_gateway(gateway_id), tunnel_ID(tunnel_id), end_date(end_date)
+  {
+  }
+
   IdentHash tunnel_gateway;
   std::uint32_t tunnel_ID;
   std::uint64_t end_date;
@@ -58,7 +76,16 @@ struct Lease {
   }
 };
 
-const int MAX_LS_BUFFER_SIZE = 3072;
+enum LeaseSetSize : std::uint16_t
+{
+  MaxBuffer = 3072,
+  MaxLeases = 16,
+  NumLeaseLen = 1,
+  GatewayID = 32,
+  TunnelID = 4,
+  EndDate = 8,
+  LeaseSize = 44,  // GatewayID + TunnelID + EndDate
+};
 
 class LeaseSet : public RoutingDestination {
  public:
@@ -68,6 +95,13 @@ class LeaseSet : public RoutingDestination {
 
   explicit LeaseSet(
       const kovri::core::TunnelPool& pool);
+
+  /// @brief Create a LeaseSet with N Leases
+  /// @param local Local destination for the LeaseSet
+  /// @param leases Leases to include in the LeaseSet
+  LeaseSet(
+      const core::LocalDestination& local,
+      const std::vector<Lease>& leases);
 
   ~LeaseSet() {}
 
@@ -97,6 +131,17 @@ class LeaseSet : public RoutingDestination {
     return m_Identity.GetIdentHash();
   }
 
+  std::uint8_t GetNumLeases() const
+  {
+    const std::uint8_t* num_leases = m_Buffer.get() + m_Identity.GetFullLen()
+                                     + crypto::PkLen::ElGamal
+                                     + m_Identity.GetSigningPublicKeyLen();
+    if (num_leases)
+      return *num_leases;
+    else
+      return 0;
+  }
+
   const std::vector<Lease>& GetLeases() const {
     return m_Leases;
   }
@@ -112,6 +157,11 @@ class LeaseSet : public RoutingDestination {
     return m_EncryptionKey.data();
   }
 
+  const std::uint8_t* GetSignature() const
+  {
+    return m_Buffer.get() + (m_BufferLen - m_Identity.GetSignatureLen() - 1);
+  }
+
   bool IsDestination() const {
     return true;
   }
@@ -123,7 +173,7 @@ class LeaseSet : public RoutingDestination {
   bool m_IsValid;
   std::vector<Lease> m_Leases;
   IdentityEx m_Identity;
-  std::array<std::uint8_t, 256> m_EncryptionKey;
+  std::array<std::uint8_t, crypto::PkLen::ElGamal> m_EncryptionKey;
   std::unique_ptr<std::uint8_t[]> m_Buffer;
   std::size_t m_BufferLen;
 };
