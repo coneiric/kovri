@@ -91,35 +91,77 @@ struct AddressBookDefaults {
   };
 
   /// @brief Gets default publishers filename
-  /// @return Default publishers filename
+  /// @param sub_type Subscription type to retrieve
+  /// @return Publishers filename
   /// @notes A publishers file holds a list of publisher addresses
   ///   of whom publish 'subscriptions' that contain a list of hosts to .b32.i2p
-  std::string GetDefaultPublishersFilename() const {
-    return "publishers.txt";
+  std::string GetPublishersFilename(const SubscriptionType sub_type) const
+  {
+    if (sub_type == SubscriptionType::Default)
+      return "publishers.txt";
+    else
+      {
+        LOG(warning) << "AddressBook: " << __func__
+                     << ": no non-default publisher file";
+        return "";
+      }
   }
 
-  /// @brief Gets default publisher URI
-  /// @return Default publishers URI
+  /// @brief Gets publisher URI
+  /// @param sub_type Subscription type to retrieve
+  /// @return Publishers URI
   /// @notes A default publisher is used if no publishers file is available
-  std::string GetDefaultPublisherURI() const {
+  std::string GetPublisherURI(const SubscriptionType sub_type) const
+  {
     // TODO(unassigned): replace with Monero's b32 publisher service
-    return "https://downloads.getmonero.org/kovri/hosts.txt";
+    if (sub_type == SubscriptionType::Default)
+      return "https://downloads.getmonero.org/kovri/hosts.txt";
+    else
+      {
+        LOG(warning) << "AddressBook: " << __func__
+                     << ": no non-default publisher URI";
+        return "";
+      }
     // Below is only used for testing in-net download (this is *not* our default subscription)
     //return "http://udhdrtrcetjm5sxzskjyr5ztpeszydbh4dpl3pl4utgqqw2v4jna.b32.i2p/hosts.txt";
   }
 
-  /// @brief Gets default subscription filename
-  /// @return Default subscription filename
+  /// @brief Gets subscription filename
+  /// @param sub_type Subscription type to retrieve
+  /// @return Subscription filename
   /// @notes Filename used by publishers when they publish a 'subscription'
-  std::string GetDefaultSubscriptionFilename() const {
-    return "hosts.txt";
+  std::string GetSubscriptionFilename(const SubscriptionType sub_type) const
+  {
+     if (sub_type == SubscriptionType::Default)
+        return "hosts.txt";
+     else if (sub_type == SubscriptionType::User)
+        return "user_hosts.txt";
+     else if (sub_type == SubscriptionType::Private)
+        return "private_hosts.txt";
+     else
+       {
+         LOG(warning) << __func__ << ": unknown subscription type";
+         return "";
+       }
   }
 
   /// @brief Gets addresses file (file list of saved addresses)
-  /// @return Default addresses filename
+  /// @param sub_type Subscription type to retrieve
+  /// @return Addresses filename
   /// @notes Currently only used to verify that addresses have indeed been saved
-  std::string GetDefaultAddressesFilename() const {
-    return "addresses.csv";
+  std::string GetAddressesFilename(const SubscriptionType sub_type) const
+  {
+    if (sub_type == SubscriptionType::Default)
+      return "addresses.csv";
+    else if (sub_type == SubscriptionType::User)
+      return "user_addresses.csv";
+    else if (sub_type == SubscriptionType::Private)
+      return "private_addresses.csv";
+    else
+      {
+        LOG(warning) << __func__ << ": unknown subscription type";
+        return "";
+      }
   }
 };
 
@@ -161,6 +203,13 @@ class AddressBookStorage : public AddressBookDefaults {
   /// @return Number of addresses saved
   /// @param addresses Const reference to map of human-readable address to b32 hashes of address
   std::size_t Save(const AddressMap& addresses);
+
+  /// @brief Saves subscriptions to file in hosts.txt format
+  /// @return Number of addresses saved
+  /// @param addresses Const reference to map of human-readable address to full router identity
+  std::size_t SaveSubscription(
+      const std::map<std::string, kovri::core::IdentityEx>& addresses,
+      SubscriptionType sub);
 
  private:
   /// @return Address book path with appended addresses location

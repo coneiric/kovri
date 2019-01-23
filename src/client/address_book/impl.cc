@@ -138,7 +138,7 @@ void AddressBook::LoadPublishers() {
     LOG(debug) << "AddressBook: publisher(s) already loaded";
     return;
   }
-  auto publishers = GetDefaultPublishersFilename();
+  const auto publishers = GetPublishersFilename(SubscriptionType::Default);
   LOG(info) << "AddressBook: loading publisher file " << publishers;
   std::ifstream file((core::GetPath(core::Path::AddressBook) / publishers).string());
   if (file) {
@@ -175,7 +175,7 @@ void AddressBook::LoadPublishers() {
     LOG(info)
       << "AddressBook: " << m_Subscribers.size() << " publishers loaded";
   } else {
-    auto publisher = GetDefaultPublisherURI();
+    const auto publisher = GetPublisherURI(SubscriptionType::Default);
     LOG(warning)
       << "AddressBook: " << publishers << " unavailable; using " << publisher;
     m_Subscribers.push_back(
@@ -205,11 +205,11 @@ void AddressBook::LoadSubscriptionFromPublisher() {
     return;
   }
   // If available, load default subscription from file
-  auto filename = GetDefaultSubscriptionFilename();
+  auto filename = GetSubscriptionFilename(SubscriptionType::Default);
   std::ifstream file((core::GetPath(core::Path::AddressBook) / filename).string());
   LOG(info) << "AddressBook: loading subscription " << filename;
   if (file) {  // Open subscription, validate, and save to storage
-    if (!SaveSubscription(file))
+    if (!SaveSubscription(file, SubscriptionType::Default))
       LOG(warning) << "AddressBook: could not load subscription " << filename;
   } else {  // Use default publisher and download
     LOG(warning) << "AddressBook: " << filename << " not found";
@@ -250,7 +250,9 @@ void AddressBookSubscriber::DownloadSubscription() {
   download.join();
 }
 
-void AddressBookSubscriber::DownloadSubscriptionImpl() {
+void AddressBookSubscriber::DownloadSubscriptionImpl()
+{
+  using SubscriptionType = AddressBook::SubscriptionType;
   // TODO(anonimal): ensure thread safety
   LOG(info)
     << "AddressBookSubscriber: downloading subscription "
@@ -259,11 +261,17 @@ void AddressBookSubscriber::DownloadSubscriptionImpl() {
     << " Last-Modified: " << m_HTTP.GetPreviousLastModified();
   bool download_result = m_HTTP.Download();
   if (download_result) {
-    std::stringstream stream(m_HTTP.GetDownloadedContents());
-    if (!m_Book.SaveSubscription(stream)) {
-      // Error during validation or storage, download again later
-      download_result = false;
-    }
+      const auto sub_type =
+          m_HTTP.GetURI().string()
+                  == m_Book.GetPublisherURI(SubscriptionType::Default)
+              ? SubscriptionType::Default
+              : SubscriptionType::User;
+      std::stringstream stream(m_HTTP.GetDownloadedContents());
+      if (!m_Book.SaveSubscription(stream, sub_type))
+        {
+          // Error during validation or storage, download again later
+          download_result = false;
+        }
   }
   m_Book.HostsDownloadComplete(download_result);
 }
@@ -289,35 +297,25 @@ void AddressBook::HostsDownloadComplete(
 // TODO(unassigned): extend this to append new hosts (when other subscriptions are used)
 bool AddressBook::SaveSubscription(
     std::istream& stream,
-    std::string file_name) {
+    const SubscriptionType sub_type)
+{
   std::unique_lock<std::mutex> lock(m_AddressBookMutex);
   m_SubscriptionIsLoaded = false;  // TODO(anonimal): see TODO for multiple subscriptions
   try {
-    auto addresses = ValidateSubscription(stream);
+    const auto addresses = ValidateSubscription(stream);
     if (!addresses.empty()) {
       LOG(debug) << "AddressBook: processing " << addresses.size() << " addresses";
       // Stream may be a file or downloaded stream.
       // Regardless, we want to write/overwrite the subscription file.
-      // TODO(oneiric): save unique entries to userhosts.txt
-      if (file_name.empty())  // Use default filename if none given.
-        file_name = (core::GetPath(core::Path::AddressBook) / GetDefaultSubscriptionFilename()).string();
-      LOG(debug) << "AddressBook: opening subscription file " << file_name;
-      // TODO(anonimal): move file saving to storage class?
-      std::ofstream file;
-      file.open(file_name);
-      if (!file)
-        throw std::runtime_error("AddressBook: could not open subscription " + file_name);
       // Save hosts and matching identities
+      m_Storage->SaveSubscription(addresses, sub_type);
       for (auto const& address : addresses) {
         const std::string& host = address.first;
         const auto& ident = address.second;
         try
           {
             // Only stores subscription lines for addresses not already loaded
-            InsertAddress(host, ident.GetIdentHash(), SubscriptionType::Default);
-            // Write/overwrite Hostname=Base64Address pairing to subscription file
-            // TODO(anonimal): this is not optimal, especially for large subscriptions
-            file << host << "=" << ident.ToBase64() << '\n';
+            InsertAddress(host, ident.GetIdentHash(), sub_type);
             m_Storage->AddAddress(ident);
           }
         catch (...)
@@ -326,8 +324,6 @@ bool AddressBook::SaveSubscription(
             continue;
           }
       }
-      // Flush subscription file
-      file << std::flush;
       // Save a *list* of hosts within subscription to a catalog (CSV) file
       m_Storage->Save(m_Addresses);
       m_SubscriptionIsLoaded = true;
